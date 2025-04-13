@@ -55,12 +55,12 @@ Add the following to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-xr2280x-hid = "0.1.0" # Replace with the latest version
-hidapi = "2.0"       # Or latest compatible version
+xr2280x-hid = "0.9.0" # Replace with the latest version
+hidapi = "2.6"       # Or latest compatible version
 log = "0.4"          # Optional, for logging
 
 [dev-dependencies]   # For examples/tests
-env_logger = "0.10"
+env_logger = "0.11"
 approx = "0.5"
 ```
 

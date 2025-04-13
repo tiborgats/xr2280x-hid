@@ -52,12 +52,12 @@
 //!
 //! ```toml
 //! [dependencies]
-//! xr2280x-hid = "0.1.0" # Replace with the latest version
-//! hidapi = "2.0"       # Or latest compatible version
+//! xr2280x-hid = "0.9.0" # Replace with the latest version
+//! hidapi = "2.6"       # Or latest compatible version
 //! log = "0.4"          # Optional, for logging
 //!
 //! [dev-dependencies]   # For examples/tests
-//! env_logger = "0.10"
+//! env_logger = "0.11"
 //! approx = "0.5"
 //! ```
 //!
@@ -154,7 +154,7 @@
 //!
 //! ## License
 //!
-//! This project is licensed under the WTFPL - see the [LICENSE](LICENSE) file for details.
+//! This project is licensed under the WTFPL - see the `LICENSE` file in the repository root for details.
 //!
 //! ## Contributing
 //!
@@ -180,7 +180,7 @@ pub use consts::{EXAR_VID, XR2280X_EDGE_PID, XR2280X_I2C_PID};
 // --- Re-export necessary constants for public API use ---
 /// Publicly accessible flags for controlling device features.
 pub mod flags {
-    /// Flags for use with [`Xr2280x::i2c_transfer_raw`].
+    /// Flags for use with [`crate::Xr2280x::i2c_transfer_raw`].
     pub mod i2c {
         // Re-export flags needed for i2c_transfer_raw
         pub use crate::consts::i2c::out_flags::{ACK_LAST_READ, START_BIT, STOP_BIT};
