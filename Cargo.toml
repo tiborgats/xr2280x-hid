@@ -9,7 +9,7 @@ readme = "README.md"
 repository = "https://github.com/tiborgats/xr2280x-hid"
 homepage = "https://github.com/tiborgats/xr2280x-hid"
 documentation = "https://docs.rs/xr2280x-hid"
-keywords = ["hid", "usb", "gpio", "i2c", "pwm", "xr22804", "xr22802", "xr22801", "xr22800", "maxlinear", "exar"]
+keywords = ["xr22804", "xr22802", "xr22801", "xr22800", "maxlinear"]
 categories = ["hardware-support", "embedded", "api-bindings"]
 
 [dependencies]
