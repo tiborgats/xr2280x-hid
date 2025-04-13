@@ -1,0 +1,54 @@
+name: Rust CI
+
+on:
+  push:
+    branches: [ "main", "master" ] # Adjust branch names if needed
+  pull_request:
+    branches: [ "main", "master" ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build_and_test:
+    name: Build & Test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        components: clippy, rustfmt
+
+    # Install hidapi development libraries (Linux specific)
+    - name: Install libhidapi-dev (Linux)
+      if: runner.os == 'Linux'
+      run: sudo apt-get update && sudo apt-get install -y libhidapi-dev
+
+    # No specific install needed for Windows/macOS usually, hidapi crate handles it
+
+    - name: Cache dependencies
+      uses: Swatinem/rust-cache@v2
+
+    - name: Check formatting
+      run: cargo fmt --all -- --check
+
+    - name: Check clippy lints
+      run: cargo clippy --all-targets --all-features -- -D warnings # Fail on warnings
+
+    - name: Build library
+      run: cargo build --verbose --all-features
+
+    - name: Run unit tests
+      run: cargo test --verbose --all-features
+
+    # Build examples (catches build errors in examples)
+    - name: Build examples
+      run: cargo build --examples --verbose --all-features
+
+    # Integration tests are marked #[ignore] and require hardware, so they won't run here.
