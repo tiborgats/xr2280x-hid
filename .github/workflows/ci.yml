@@ -14,6 +14,8 @@ jobs:
     name: Build & Test (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
+      # Fail fast if one OS fails, unless you need all results regardless
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
 
@@ -25,15 +27,26 @@ jobs:
       with:
         components: clippy, rustfmt
 
-    # Install hidapi development libraries (Linux specific)
-    - name: Install libhidapi-dev (Linux)
+    # Install hidapi development libraries and tools (Linux specific)
+    - name: Install Linux dependencies (hidapi, udev, pkg-config)
       if: runner.os == 'Linux'
-      run: sudo apt-get update && sudo apt-get install -y libhidapi-dev
+      run: |
+        sudo apt-get update -y
+        # Install libudev-dev (provides libudev.pc), pkg-config (tool to find .pc files),
+        # and libhidapi-dev (provides hidapi headers/library itself)
+        sudo apt-get install -y libudev-dev pkg-config libhidapi-dev
+      # Note: libhidapi-dev might pull in libudev-dev, but being explicit is safer.
+      # pkg-config is definitely needed by the build script.
 
-    # No specific install needed for Windows/macOS usually, hidapi crate handles it
+    # No specific system package install needed for Windows/macOS usually,
+    # the hidapi crate's build script handles finding/linking system HID libraries.
 
     - name: Cache dependencies
       uses: Swatinem/rust-cache@v2
+      # Consider adding OS to cache key if dependencies differ significantly,
+      # although rust-cache often handles this well automatically.
+      # with:
+      #   key: ${{ runner.os }}-cargo
 
     - name: Check formatting
       run: cargo fmt --all -- --check
@@ -45,7 +58,8 @@ jobs:
       run: cargo build --verbose --all-features
 
     - name: Run unit tests
-      run: cargo test --verbose --all-features
+      # Skip ignored tests (hardware tests) by default in CI
+      run: cargo test --verbose --all-features -- --skip ignored
 
     # Build examples (catches build errors in examples)
     - name: Build examples

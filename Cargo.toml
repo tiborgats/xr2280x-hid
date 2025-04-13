@@ -1,19 +1,19 @@
 [package]
 name = "xr2280x-hid"
-version = "0.1.0"
+version = "0.9.0"
 edition = "2021"
-authors = ["Your Name <your.email@example.com>"] # <-- CHANGE THIS
+authors = ["Tibor Gats <tibor.gats@gmail.com>"]
 description = "Control XR2280x I2C and GPIO/PWM/Interrupts over USB HID"
-license = "WTFPL" # As requested. crates.io prefers SPDX identifiers.
+license = "WTFPL" # crates.io prefers SPDX identifiers.
 readme = "README.md"
-repository = "https://github.com/your-username/xr2280x-hid" # <-- CHANGE THIS
-homepage = "https://github.com/your-username/xr2280x-hid" # <-- CHANGE THIS (Optional)
-documentation = "https://docs.rs/xr2280x-hid" # Will work after publishing
+repository = "https://github.com/tiborgats/xr2280x-hid"
+homepage = "https://github.com/tiborgats/xr2280x-hid"
+documentation = "https://docs.rs/xr2280x-hid"
 keywords = ["hid", "usb", "gpio", "i2c", "pwm", "xr22804", "xr22802", "xr22801", "xr22800", "maxlinear", "exar"]
 categories = ["hardware-support", "embedded", "api-bindings"]
 
 [dependencies]
-hidapi = "2.0" # Or latest compatible version
+hidapi = "2.6"
 thiserror = "2.0"
 log = "0.4"
 

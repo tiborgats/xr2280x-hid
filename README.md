@@ -3,7 +3,7 @@
 [![crates.io](https://img.shields.io/crates/v/xr2280x-hid.svg)](https://crates.io/crates/xr2280x-hid)
 [![docs.rs](https://docs.rs/xr2280x-hid/badge.svg)](https://docs.rs/xr2280x-hid)
 [![License: WTFPL](https://img.shields.io/badge/License-WTFPL-brightgreen.svg)](LICENSE)
-[![CI](https://github.com/your-username/xr2280x-hid/actions/workflows/ci.yml/badge.svg)](https://github.com/your-username/xr2280x-hid/actions/workflows/ci.yml) <!-- <-- CHANGE THIS -->
+[![CI](https://github.com/tiborgats/xr2280x-hid/actions/workflows/ci.yml/badge.svg)](https://github.com/tiborgats/xr2280x-hid/actions/workflows/ci.yml)
 
 Control MaxLinear/Exar XR22800, XR22801, XR22802, and XR22804 I²C, GPIO, PWM, and Interrupt configuration over USB HID using Rust.
 
@@ -256,4 +256,4 @@ This project is licensed under the WTFPL - see the [LICENSE](LICENSE) file for d
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit pull requests or open issues on the [repository](https://github.com/your-username/xr2280x-hid) <!-- <-- CHANGE THIS -->.
+Contributions are welcome! Please feel free to submit pull requests or open issues on the [repository](https://github.com/tiborgats/xr2280x-hid) .
