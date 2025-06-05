@@ -36,7 +36,7 @@ fn main() -> Result<()> {
         PWM_CHANNEL,
         pwm_pin.number()
     );
-    device.gpio_assign_to_edge(pwm_pin, true)?;
+    device.gpio_assign_to_edge(pwm_pin)?;
     device.gpio_set_direction(pwm_pin, GpioDirection::Output)?;
     device.gpio_set_pull(pwm_pin, GpioPull::None)?;
 
@@ -60,13 +60,13 @@ fn main() -> Result<()> {
 
     device.pwm_set_pin(PWM_CHANNEL, pwm_pin)?;
     println!("Starting PWM output...");
-    device.pwm_control(PWM_CHANNEL, PwmCommand::FreeRun, true)?;
+    device.pwm_control(PWM_CHANNEL, true, PwmCommand::FreeRun)?;
 
     println!("PWM running for 5 seconds (Press Ctrl+C to stop early)...");
     thread::sleep(Duration::from_secs(5));
 
     println!("Stopping PWM output...");
-    device.pwm_control(PWM_CHANNEL, PwmCommand::Idle, false)?;
+    device.pwm_control(PWM_CHANNEL, false, PwmCommand::Idle)?;
 
     // Set pin back to input
     device.gpio_set_direction(pwm_pin, GpioDirection::Input)?;

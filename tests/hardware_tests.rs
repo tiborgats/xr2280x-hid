@@ -42,7 +42,7 @@ fn test_gpio_output_readback() -> Result<()> {
     }
 
     println!("Testing GPIO Output Readback on pin {}", pin.number());
-    device.gpio_assign_to_edge(pin, true)?;
+    device.gpio_assign_to_edge(pin)?;
     device.gpio_set_direction(pin, GpioDirection::Output)?;
     device.gpio_set_pull(pin, GpioPull::None)?;
 
@@ -122,7 +122,7 @@ fn test_pwm_basic_output() -> Result<()> {
     }
 
     println!("Testing PWM Output on pin {}", pwm_pin.number());
-    device.gpio_assign_to_edge(pwm_pin, true)?;
+    device.gpio_assign_to_edge(pwm_pin)?;
     device.gpio_set_direction(pwm_pin, GpioDirection::Output)?;
     device.gpio_set_pull(pwm_pin, GpioPull::None)?;
 
@@ -131,7 +131,7 @@ fn test_pwm_basic_output() -> Result<()> {
     let low_ns = 1_000_000; // 1ms
     device.pwm_set_periods_ns(pwm_channel, high_ns, low_ns)?;
     device.pwm_set_pin(pwm_channel, pwm_pin)?;
-    device.pwm_control(pwm_channel, PwmCommand::FreeRun, true)?;
+    device.pwm_control(pwm_channel, true, PwmCommand::FreeRun)?;
 
     println!(
         "PWM should be running on pin {} for 3 seconds...",
@@ -139,7 +139,7 @@ fn test_pwm_basic_output() -> Result<()> {
     );
     thread::sleep(Duration::from_secs(3));
 
-    device.pwm_control(pwm_channel, PwmCommand::Idle, false)?;
+    device.pwm_control(pwm_channel, false, PwmCommand::Idle)?;
     println!("PWM stopped.");
 
     // Set pin back to input

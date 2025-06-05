@@ -29,7 +29,7 @@ fn main() -> Result<()> {
         return Ok(());
     }
 
-    device.gpio_assign_to_edge(blink_pin, true)?;
+    device.gpio_assign_to_edge(blink_pin)?;
     device.gpio_set_direction(blink_pin, GpioDirection::Output)?;
     device.gpio_set_pull(blink_pin, GpioPull::None)?; // Ensure pulls off
 
