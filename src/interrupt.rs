@@ -22,9 +22,9 @@ pub struct GpioInterruptReport {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ParsedGpioInterruptReport {
     /// Speculative bitmask indicating which GPIO pins in group 0 triggered the interrupt.
-    pub trigger_mask_group0: u16,  // Speculative
+    pub trigger_mask_group0: u16, // Speculative
     /// Speculative bitmask indicating which GPIO pins in group 1 triggered the interrupt.
-    pub trigger_mask_group1: u16,  // Speculative
+    pub trigger_mask_group1: u16, // Speculative
     /// Current logic state of GPIO pins 0-15 (assumed from first 2 bytes).
     pub current_state_group0: u16, // Assumed from first 2 bytes
     /// Current logic state of GPIO pins 16-31 (assumed from next 2 bytes).

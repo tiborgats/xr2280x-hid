@@ -8,7 +8,7 @@ use log::{debug, trace};
 
 /// Represents the two PWM channels available.
 /// PWM channel identifier for XR2280x devices.
-/// 
+///
 /// XR2280x devices support up to 2 independent PWM channels that can be
 /// assigned to any available GPIO pin.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -20,7 +20,7 @@ pub enum PwmChannel {
 }
 
 /// PWM command/mode for controlling PWM output behavior.
-/// 
+///
 /// These commands control how the PWM channel behaves after being enabled.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PwmCommand {

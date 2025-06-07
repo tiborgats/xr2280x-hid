@@ -372,9 +372,7 @@ impl Xr2280x {
             }
             Ok(written) => {
                 warn!("Partial write: sent {} of {} bytes", written, out_buf.len());
-                return Err(Error::Io(std::io::Error::other(
-                    "Partial HID write",
-                )));
+                return Err(Error::Io(std::io::Error::other("Partial HID write")));
             }
             Err(e) => return Err(Error::Hid(e)),
         }

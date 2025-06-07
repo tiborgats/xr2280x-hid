@@ -7,7 +7,7 @@ use log::{debug, trace, warn};
 use std::ffi::CStr;
 
 /// Information about a discovered XR2280x HID device.
-/// 
+///
 /// This struct contains the essential information needed to identify and
 /// connect to a specific XR2280x device found during enumeration.
 #[derive(Debug, Clone)]
@@ -74,7 +74,7 @@ pub fn find_devices(hid_api: &HidApi) -> impl Iterator<Item = XrDeviceDiscoveryI
 
 /// Holds basic information about an opened device.
 /// Detailed information about an opened XR2280x device.
-/// 
+///
 /// This struct provides comprehensive device identification and capability
 /// information for an actively connected XR2280x device.
 #[derive(Debug, Clone)]

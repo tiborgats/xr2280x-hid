@@ -29,67 +29,67 @@ pub enum Error {
     ArgumentOutOfRange(String),
     /// GPIO pin number is outside the valid range for this device.
     #[error("GPIO pin {pin} argument out of range (0-31): {message}")]
-    PinArgumentOutOfRange { 
+    PinArgumentOutOfRange {
         /// The invalid pin number that was specified.
-        pin: u8, 
+        pin: u8,
         /// Detailed error message explaining the constraint.
-        message: String 
+        message: String,
     },
     /// I2C slave device responded with NACK (not acknowledged).
     #[error("I2C transaction aborted for address {address:?}: NACK received from slave")]
-    I2cNack { 
+    I2cNack {
         /// The I2C address that sent the NACK.
-        address: I2cAddress 
+        address: I2cAddress,
     },
     /// I2C bus arbitration was lost during transaction.
     #[error("I2C transaction aborted for address {address:?}: Arbitration Lost")]
-    I2cArbitrationLost { 
+    I2cArbitrationLost {
         /// The I2C address being accessed when arbitration was lost.
-        address: I2cAddress 
+        address: I2cAddress,
     },
     /// I2C bus timeout occurred during transaction.
     #[error("I2C transaction aborted for address {address:?}: Bus Timeout")]
-    I2cTimeout { 
+    I2cTimeout {
         /// The I2C address being accessed when timeout occurred.
-        address: I2cAddress 
+        address: I2cAddress,
     }, // Keep specific I2C timeout
     /// I2C transaction failed due to invalid request parameters.
     #[error("I2C transaction failed for address {address:?}: Invalid request from host (check arguments)")]
-    I2cRequestError { 
+    I2cRequestError {
         /// The I2C address being accessed when the error occurred.
-        address: I2cAddress 
+        address: I2cAddress,
     },
     /// I2C transaction failed with unknown error condition.
     #[error(
         "I2C transaction failed for address {address:?}: Unknown error (Status Flags: {flags:02X})"
     )]
-    I2cUnknownError { 
+    I2cUnknownError {
         /// The I2C address being accessed when the error occurred.
-        address: I2cAddress, 
+        address: I2cAddress,
         /// Raw status flags from the device indicating the error condition.
-        flags: u8 
+        flags: u8,
     },
     /// HID feature report operation failed.
     #[error("Feature report error (e.g., incorrect length, device error) while accessing register 0x{reg_addr:04X}")]
-    FeatureReportError { 
+    FeatureReportError {
         /// The register address that was being accessed.
-        reg_addr: u16 
+        reg_addr: u16,
     },
     /// Provided buffer is smaller than required for the operation.
     #[error("Provided buffer is too small (expected at least {expected}, got {actual})")]
-    BufferTooSmall { 
+    BufferTooSmall {
         /// Minimum required buffer size.
-        expected: usize, 
+        expected: usize,
         /// Actual buffer size provided.
-        actual: usize 
+        actual: usize,
     },
     /// Requested operation exceeds device or protocol limits.
     #[error("Requested operation size is too large (max {max}, got {actual})")]
-    OperationTooLarge { 
+    OperationTooLarge {
         /// Maximum allowed size for this operation.
-        max: usize, 
+        max: usize,
         /// Actual size requested.
-        actual: usize 
+        actual: usize,
     },
     /// Feature is not supported by this device model.
     #[error("Feature not supported by this chip model: {0}")]
