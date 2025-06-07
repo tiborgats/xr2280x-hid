@@ -6,26 +6,39 @@ use crate::error::{unsupported_gpio_group1, Error, Result};
 use log::{debug, trace};
 
 /// Represents a GPIO group for bulk operations.
+/// GPIO Group (0-15 or 16-31) for XR22802/4 multi-group support.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum GpioGroup {
+    /// GPIO pins 0-15 (supported on all XR2280x models).
     Group0,
+    /// GPIO pins 16-31 (only supported on XR22802/XR22804).
     Group1,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// Direction configuration for a GPIO pin.
 pub enum GpioDirection {
+    /// Configure pin as input (high impedance).
     Input,
+    /// Configure pin as output (can drive high or low).
     Output,
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// Logic level for GPIO pin state.
 pub enum GpioLevel {
+    /// Logic low (0V, ground).
     Low,
+    /// Logic high (3.3V, VCC).
     High,
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// Pull resistor configuration for GPIO pins.
 pub enum GpioPull {
+    /// No pull resistor (floating input).
     None,
+    /// Pull-up resistor enabled (weakly pulls to VCC).
     Up,
+    /// Pull-down resistor enabled (weakly pulls to ground).
     Down,
 }
 
@@ -111,8 +124,8 @@ impl Xr2280x {
         };
         let current = self.read_hid_register(reg)?;
         let new_value = match direction {
-            GpioDirection::Input => current & !pin.mask(),  // 0 = Input
-            GpioDirection::Output => current | pin.mask(),  // 1 = Output
+            GpioDirection::Input => current & !pin.mask(), // 0 = Input
+            GpioDirection::Output => current | pin.mask(), // 1 = Output
         };
         debug!(
             "Setting GPIO pin {} direction to {:?}",
@@ -251,11 +264,7 @@ impl Xr2280x {
         } else {
             current & !pin.mask()
         };
-        debug!(
-            "Setting GPIO pin {} open-drain to {}",
-            pin.number(),
-            enable
-        );
+        debug!("Setting GPIO pin {} open-drain to {}", pin.number(), enable);
         self.write_hid_register(reg, new_value)?;
         Ok(())
     }
@@ -286,11 +295,7 @@ impl Xr2280x {
         } else {
             current & !pin.mask()
         };
-        debug!(
-            "Setting GPIO pin {} tri-state to {}",
-            pin.number(),
-            enable
-        );
+        debug!("Setting GPIO pin {} tri-state to {}", pin.number(), enable);
         self.write_hid_register(reg, new_value)?;
         Ok(())
     }
@@ -321,8 +326,8 @@ impl Xr2280x {
 
         let current = self.read_hid_register(reg_dir)?;
         let new_value = match direction {
-            GpioDirection::Input => current & !mask,  // 0 = Input
-            GpioDirection::Output => current | mask,  // 1 = Output
+            GpioDirection::Input => current & !mask, // 0 = Input
+            GpioDirection::Output => current | mask, // 1 = Output
         };
         debug!(
             "Setting {:?} pins (mask=0x{:04X}) direction to {:?}",
@@ -464,7 +469,9 @@ impl Xr2280x {
     fn get_gpio_reg_for_group(&self, group: GpioGroup, base_reg: u16) -> u16 {
         match group {
             GpioGroup::Group0 => base_reg,
-            GpioGroup::Group1 => base_reg + (consts::edge::REG_FUNC_SEL_1 - consts::edge::REG_FUNC_SEL_0),
+            GpioGroup::Group1 => {
+                base_reg + (consts::edge::REG_FUNC_SEL_1 - consts::edge::REG_FUNC_SEL_0)
+            }
         }
     }
 

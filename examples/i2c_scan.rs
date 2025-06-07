@@ -1,6 +1,5 @@
 use hidapi::HidApi;
-use std::time::Duration;
-use xr2280x_hid::{self, flags, I2cAddress, Result}; // Import the public flags module
+use xr2280x_hid::{self, Result};
 
 fn main() -> Result<()> {
     env_logger::init();
@@ -22,34 +21,13 @@ fn main() -> Result<()> {
     device.i2c_set_speed_khz(100)?;
 
     println!("Scanning I2C bus (7-bit addresses 0x08 to 0x77)...");
-    let mut found_devices = Vec::new();
 
-    // Use constants via the re-exported flags module
-    let i2c_flags = flags::i2c::START_BIT | flags::i2c::STOP_BIT;
+    // Use the fast scan method with default address range (0x08-0x77)
+    let found_devices = device.i2c_scan_default()?;
 
-    for addr_7bit in 0x08..=0x77 {
-        let address = I2cAddress::new_7bit(addr_7bit)?; // Create typed address
-                                                        // Use a short write (0 bytes) to check for ACK
-        match device.i2c_transfer_raw(address, None, None, i2c_flags, Some(50)) {
-            // Use shorter timeout
-            Ok(_) => {
-                println!("Device found at {}", address); // Display uses Display trait
-                found_devices.push(addr_7bit);
-            }
-            Err(xr2280x_hid::Error::I2cNack { .. }) => {
-                // No device at this address, continue silently
-            }
-            Err(xr2280x_hid::Error::I2cTimeout { .. }) => {
-                // Timeout might indicate a stuck bus or very slow device, log it
-                eprintln!("Timeout checking address {}", address);
-            }
-            Err(e) => {
-                // Other error (ArbitrationLost, etc.)
-                eprintln!("Error checking address {}: {}", address, e);
-            }
-        }
-        // Small delay between probes might be necessary on some buses
-        std::thread::sleep(Duration::from_millis(2));
+    // Print found devices
+    for &addr in &found_devices {
+        println!("Device found at 7-bit 0x{:02X}", addr);
     }
 
     if found_devices.is_empty() {

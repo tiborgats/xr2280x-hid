@@ -149,7 +149,9 @@ pub mod interrupt;
 pub mod pwm;
 
 // Re-export main types and functions
-pub use device::{find_all, find_devices, find_first, Capabilities, Xr2280x, XrDeviceDiscoveryInfo, XrDeviceInfo};
+pub use device::{
+    find_all, find_devices, find_first, Capabilities, Xr2280x, XrDeviceDiscoveryInfo, XrDeviceInfo,
+};
 pub use error::{Error, Result};
 pub use gpio::{GpioDirection, GpioGroup, GpioLevel, GpioPin, GpioPull};
 pub use i2c::I2cAddress;
@@ -202,10 +204,41 @@ mod tests {
     }
 
     #[test]
+    fn test_i2c_address_wire_format() {
+        // Test that 7-bit addresses are correctly converted to 8-bit wire format
+        // In I2C, a 7-bit address 0x50 becomes 0xA0 on the wire (shifted left)
+
+        // Common I2C device addresses and their expected wire format
+        let test_cases = [
+            (0x50, 0xA0), // EEPROM
+            (0x68, 0xD0), // RTC
+            (0x77, 0xEE), // Barometric sensor
+            (0x3C, 0x78), // OLED display
+            (0x48, 0x90), // Temperature sensor
+        ];
+
+        for (addr_7bit, expected_wire) in test_cases {
+            let addr = I2cAddress::new_7bit(addr_7bit).unwrap();
+            if let I2cAddress::Bit7(a) = addr {
+                let wire_format = a << 1;
+                assert_eq!(
+                    wire_format, expected_wire,
+                    "7-bit address 0x{:02X} should become 0x{:02X} on wire, got 0x{:02X}",
+                    addr_7bit, expected_wire, wire_format
+                );
+            }
+        }
+
+        // Verify the range is still correct after shifting
+        assert_eq!(0x00 << 1, 0x00); // Minimum
+        assert_eq!(0x7F << 1, 0xFE); // Maximum (0xFF would include R/W bit)
+    }
+
+    #[test]
     fn test_pwm_unit_conversion() {
         // Test conversion constants
         let unit_ns = consts::edge::PWM_UNIT_TIME_NS;
-        
+
         // Helper to convert ns to pwm units (matching the implementation)
         let ns_to_units = |nanoseconds: u64| -> Result<u16> {
             if nanoseconds == 0 {
@@ -222,11 +255,9 @@ mod tests {
                 Ok(units as u16)
             }
         };
-        
+
         // Helper to convert pwm units to ns
-        let units_to_ns = |units: u16| -> u64 {
-            (units as f64 * unit_ns).round() as u64
-        };
+        let units_to_ns = |units: u16| -> u64 { (units as f64 * unit_ns).round() as u64 };
 
         // Test basic conversions
         let units = ns_to_units(1000).unwrap();

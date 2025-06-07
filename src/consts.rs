@@ -1,11 +1,14 @@
 //! Internal constants, register addresses, and bit definitions.
 
 // Default Vendor/Product IDs
+/// Exar Corporation vendor ID for XR2280x devices.
 pub const EXAR_VID: u16 = 0x04E2;
 
 // Default Product IDs for the relevant HID interfaces
 // Note: Datasheets suggest these PIDs are the same across models for these interfaces.
+/// Product ID for XR2280x I2C interface (common for XR22800/1/2/4).
 pub const XR2280X_I2C_PID: u16 = 0x1100; // Common for XR22800/1/2/4
+/// Product ID for XR2280x EDGE (GPIO/PWM/Interrupt) interface (common for XR22800/1/2/4).
 pub const XR2280X_EDGE_PID: u16 = 0x1200; // Common for XR22800/1/2/4
 
 // --- Feature Reports (Control Transfer) ---
@@ -30,8 +33,11 @@ pub mod i2c {
 
     // I2C_SLAVE_OUT Flags (Byte 0 of OUT report buffer)
     pub mod out_flags {
+        /// Generate I2C START condition at beginning of transaction.
         pub const START_BIT: u8 = 1 << 0;
+        /// Generate I2C STOP condition at end of transaction.
         pub const STOP_BIT: u8 = 1 << 1;
+        /// Send ACK after last read byte (default is NACK).
         #[allow(dead_code)] // Used externally via i2c_transfer_raw
         pub const ACK_LAST_READ: u8 = 1 << 2; // Default is NACK last read
                                               // Bits 3 reserved
