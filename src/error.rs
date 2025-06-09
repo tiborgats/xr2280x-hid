@@ -36,32 +36,32 @@ pub enum Error {
         message: String,
     },
     /// I2C slave device responded with NACK (not acknowledged).
-    #[error("I2C transaction aborted for address {address:?}: NACK received from slave")]
+    #[error("No device found at I2C address {address}: Device did not acknowledge (NACK). This is normal when scanning for devices.")]
     I2cNack {
         /// The I2C address that sent the NACK.
         address: I2cAddress,
     },
     /// I2C bus arbitration was lost during transaction.
-    #[error("I2C transaction aborted for address {address:?}: Arbitration Lost")]
+    #[error("I2C bus conflict at address {address}: Arbitration lost (multiple masters competing for bus control). Check for other I2C controllers, loose connections, or electrical interference. Try disconnecting other devices and retrying.")]
     I2cArbitrationLost {
         /// The I2C address being accessed when arbitration was lost.
         address: I2cAddress,
     },
     /// I2C bus timeout occurred during transaction.
-    #[error("I2C transaction aborted for address {address:?}: Bus Timeout")]
+    #[error("I2C timeout at address {address}: Device did not respond within timeout period. This may indicate: stuck bus (unpowered device holding lines low), very slow device, or hardware issues. Check device power and connections.")]
     I2cTimeout {
         /// The I2C address being accessed when timeout occurred.
         address: I2cAddress,
     }, // Keep specific I2C timeout
     /// I2C transaction failed due to invalid request parameters.
-    #[error("I2C transaction failed for address {address:?}: Invalid request from host (check arguments)")]
+    #[error("I2C request error at address {address}: Invalid parameters sent to XR2280x firmware. Check data length (max 32 bytes), address validity, and operation flags.")]
     I2cRequestError {
         /// The I2C address being accessed when the error occurred.
         address: I2cAddress,
     },
     /// I2C transaction failed with unknown error condition.
     #[error(
-        "I2C transaction failed for address {address:?}: Unknown error (Status Flags: {flags:02X})"
+        "I2C unknown error at address {address}: Unexpected condition reported by XR2280x firmware (Status: 0x{flags:02X}). This may indicate firmware issues or unsupported operation. Try power cycling the XR2280x device."
     )]
     I2cUnknownError {
         /// The I2C address being accessed when the error occurred.

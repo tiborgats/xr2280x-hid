@@ -380,7 +380,7 @@ pub use device::{
 };
 pub use error::{Error, Result};
 pub use gpio::{GpioDirection, GpioGroup, GpioLevel, GpioPin, GpioPull};
-pub use i2c::I2cAddress;
+pub use i2c::{timeouts, I2cAddress};
 pub use interrupt::{GpioInterruptReport, ParsedGpioInterruptReport};
 pub use pwm::{PwmChannel, PwmCommand};
 

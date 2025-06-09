@@ -5,6 +5,69 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.2] - 2024-12-19
+
+### Added
+- **Robust I2C Timeout System**: Operation-specific timeout constants for different use cases
+  - `timeouts::PROBE` (3ms) - Ultra-fast firmware responsiveness testing
+  - `timeouts::SCAN` (8ms) - Fast device discovery with stuck bus protection
+  - `timeouts::READ` (100ms) - Standard sensor readings and register access
+  - `timeouts::WRITE` (200ms) - Configuration writes to device registers
+  - `timeouts::WRITE_READ` (250ms) - Combined write-then-read operations
+  - `timeouts::EEPROM_WRITE` (5000ms) - Slow memory operations
+- **Custom Timeout Methods**: All I2C operations now have `_with_timeout` variants for precise control
+  - `i2c_read_7bit_with_timeout()`, `i2c_write_7bit_with_timeout()`, etc.
+- **Specialized Methods**: Pre-configured methods for common device types
+  - `i2c_eeprom_write_7bit()` - EEPROM operations with appropriate long timeouts
+  - `i2c_scan_with_progress_and_timeout()` - Custom timeout scanning
+- **Fast Stuck Bus Detection**: Prevents 29+ second hangs when unpowered devices hold I2C lines low
+  - Pre-scan firmware responsiveness test (3ms timeout on reserved address)
+  - Consecutive timeout pattern detection with immediate failure
+  - Application-level timeout protection independent of HID layer
+- **Comprehensive Error Documentation**: New user guides with troubleshooting steps
+  - `docs/I2C_ERROR_GUIDE.md` - Complete troubleshooting guide with hardware checklists
+  - `docs/I2C_TIMEOUT_IMPROVEMENTS.md` - Technical details of the timeout system
+- **Enhanced Examples**: New test programs demonstrating the improvements
+  - `examples/i2c_test_stuck_bus.rs` - Verifies fast stuck bus detection
+  - `examples/i2c_error_demo.rs` - Shows what each error looks like
+  - `examples/i2c_timeouts.rs` - Demonstrates flexible timeout usage
+
+### Changed
+- **User-Friendly Error Messages**: All I2C errors now provide clear, actionable guidance
+  - `I2cNack`: Explains this is normal during scanning, not an error
+  - `I2cTimeout`: Provides specific hardware troubleshooting steps
+  - `I2cArbitrationLost`: Explains bus contention and how to resolve it
+  - `I2cRequestError`: Points to specific code parameters to check
+  - `I2cUnknownError`: Suggests firmware recovery actions
+- **Enhanced i2c_scan Example**: Updated with comprehensive error handling and troubleshooting guidance
+- **Improved Documentation**: All timeout constants now properly documented with intra-doc links
+- **Default Timeouts**: Operations now use appropriate defaults instead of single 500ms timeout
+  - Scanning operations: 8ms (vs previous 500ms) - **62x faster**
+  - Read operations: 100ms (vs previous 500ms) - **5x faster**
+  - Write operations: 200ms (vs previous 500ms) - **2.5x faster**
+
+### Fixed
+- **Critical: Eliminated 29+ Second Hangs**: When unpowered I2C devices hold bus lines low
+  - **Root Cause**: XR2280x firmware becomes unresponsive, HID timeouts ineffective
+  - **Solution**: Pre-scan responsiveness testing catches stuck firmware immediately
+  - **Result**: Maximum 3 seconds to detect stuck bus vs previous 29+ second hangs
+- **Broken Documentation Links**: Fixed intra-doc links for timeout constants
+- **Code Formatting**: Applied consistent Rust formatting across all files
+
+### Performance
+- **60x Faster I2C Scanning**: For responsive devices (3-8ms vs 500ms per address)
+- **Fast Failure Protection**: Stuck bus detection in <3 seconds vs 29+ second hangs
+- **Real-World Impact**: Full bus scan (112 addresses)
+  - **Before**: 56 seconds (all timeout) or 29+ second hang (stuck bus)
+  - **After**: 0.9 seconds (normal) or <3 seconds (stuck bus detection)
+
+### Technical Details
+- **Firmware Responsiveness Testing**: Ultra-fast 3ms probe of reserved address 0x00
+- **Pattern-Based Detection**: Fails after 1-2 consecutive timeouts instead of 5+
+- **Multi-Layered Protection**: Both HID-level and application-level timeout enforcement
+- **Backward Compatibility**: All existing code continues to work with better defaults
+- **Module Exports**: Added `timeouts` module to public API for user access
+
 ## [0.9.1] - 2024-12-19
 
 ### Fixed
