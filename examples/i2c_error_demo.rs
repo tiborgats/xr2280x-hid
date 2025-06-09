@@ -15,7 +15,7 @@ fn main() -> Result<()> {
     println!("XR2280x I2C Error Message Demonstration");
     println!("=======================================\n");
 
-    let hid_api = HidApi::new().map_err(|e| Error::Hid(e))?;
+    let hid_api = HidApi::new().map_err(Error::Hid)?;
     let device = Xr2280x::open_first(&hid_api)?;
 
     println!("This demo shows what different I2C errors look like with");

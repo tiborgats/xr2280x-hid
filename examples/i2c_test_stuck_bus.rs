@@ -19,7 +19,7 @@ fn main() -> Result<()> {
     println!("XR2280x Stuck Bus Detection Test");
     println!("================================\n");
 
-    let hid_api = HidApi::new().map_err(|e| Error::Hid(e))?;
+    let hid_api = HidApi::new().map_err(Error::Hid)?;
     let device = Xr2280x::open_first(&hid_api)?;
 
     // Test 1: Normal operation with responsive firmware

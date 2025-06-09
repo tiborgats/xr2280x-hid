@@ -9,7 +9,7 @@ use xr2280x_hid::{timeouts, Error, Result, Xr2280x};
 
 fn main() -> Result<()> {
     env_logger::init();
-    let hid_api = HidApi::new().map_err(|e| Error::Hid(e))?;
+    let hid_api = HidApi::new().map_err(Error::Hid)?;
     let device = Xr2280x::open_first(&hid_api)?;
 
     println!("XR2280x I2C Timeout Configuration Examples");
