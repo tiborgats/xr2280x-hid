@@ -1,10 +1,10 @@
 [package]
 name = "xr2280x-hid"
-version = "0.9.2"
+version = "0.9.3"
 edition = "2021"
 authors = ["Tibor Gats <tibor.gats@gmail.com>"]
 description = "Control XR2280x I2C and GPIO/PWM/Interrupts over USB HID"
-license = "WTFPL" # crates.io prefers SPDX identifiers.
+license = "WTFPL"                                                        # crates.io prefers SPDX identifiers.
 readme = "README.md"
 repository = "https://github.com/tiborgats/xr2280x-hid"
 homepage = "https://github.com/tiborgats/xr2280x-hid"
@@ -20,4 +20,4 @@ log = "0.4"
 [dev-dependencies]
 # For running examples and tests
 env_logger = "0.11" # Or latest
-approx = "0.5" # For float comparisons in tests
+approx = "0.5"      # For float comparisons in tests

@@ -15,6 +15,38 @@ pub enum Error {
     /// No XR2280x device was found with the specified vendor/product ID.
     #[error("Device not found with specified VID/PID")]
     DeviceNotFound,
+    /// No XR2280x device was found with the specified serial number.
+    #[error("Device not found with serial number '{serial}': {message}")]
+    DeviceNotFoundBySerial {
+        /// The serial number that was searched for.
+        serial: String,
+        /// Additional error details.
+        message: String,
+    },
+    /// No XR2280x device was found at the specified path.
+    #[error("Device not found at path '{path}': {message}")]
+    DeviceNotFoundByPath {
+        /// The device path that was searched for.
+        path: String,
+        /// Additional error details.
+        message: String,
+    },
+    /// No XR2280x device was found at the specified index.
+    #[error("Device not found at index {index}: {message}")]
+    DeviceNotFoundByIndex {
+        /// The index that was requested.
+        index: usize,
+        /// Additional error details.
+        message: String,
+    },
+    /// Multiple XR2280x devices were found when only one was expected.
+    #[error("Multiple devices found ({count}): {message}")]
+    MultipleDevicesFound {
+        /// The number of devices that were found.
+        count: usize,
+        /// Additional context about the ambiguity.
+        message: String,
+    },
     /// General I/O error during device communication.
     #[error("I/O error: {0}")]
     Io(#[from] std::io::Error),

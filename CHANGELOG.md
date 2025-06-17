@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.3] - 2025-06-16
+
+### Added
+- **Multi-Device Selection Support**: Comprehensive device selection when multiple XR2280x devices are connected
+  - `Xr2280x::enumerate_devices()` - Get list of all available XR2280x devices
+  - `Xr2280x::open_by_serial()` - Open device by serial number
+  - `Xr2280x::open_by_index()` - Open device by enumeration index (0-based)
+  - `Xr2280x::open_by_path()` - Open device by platform-specific path
+  - `Xr2280x::from_hid_device()` - Create instance from existing HidDevice
+- **Enhanced Error Handling**: Specific error types for multi-device selection failures
+  - `Error::DeviceNotFoundBySerial` - Serial number not found
+  - `Error::DeviceNotFoundByIndex` - Index out of range
+  - `Error::DeviceNotFoundByPath` - Invalid device path
+  - `Error::MultipleDevicesFound` - Ambiguous selection when expecting one device
+- **Re-exported Types**: Essential hidapi types now available through the crate
+  - `hidapi::DeviceInfo` and `hidapi::HidApi` re-exported for convenience
+- **New Example**: `multi_device_selection.rs` demonstrating all selection methods
+
+### Changed
+- Refactored device opening logic to use unified `from_hid_device()` method internally
+- Updated documentation with comprehensive multi-device selection examples
+- Enhanced README with dedicated multi-device selection section
+
+### Fixed
+- Improved consistency between different device opening methods
+
 ## [0.9.2] - 2024-12-19
 
 ### Added

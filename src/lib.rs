@@ -48,6 +48,84 @@
 //! # }
 //! ```
 //!
+//! ## Multi-Device Selection
+//!
+//! When multiple XR2280x devices are connected, you can select specific devices using various methods:
+//!
+//! ### Enumerate All Devices
+//!
+//! ```no_run
+//! use xr2280x_hid::Xr2280x;
+//! use hidapi::HidApi;
+//!
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! let hid_api = HidApi::new()?;
+//!
+//! // Get list of all XR2280x devices
+//! let devices = Xr2280x::enumerate_devices(&hid_api)?;
+//! println!("Found {} XR2280x devices:", devices.len());
+//!
+//! for (i, info) in devices.iter().enumerate() {
+//!     println!("  [{}] Serial: {}, Product: {}",
+//!         i,
+//!         info.serial_number().unwrap_or("N/A"),
+//!         info.product_string().unwrap_or("Unknown")
+//!     );
+//! }
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! ### Open by Serial Number
+//!
+//! ```no_run
+//! use xr2280x_hid::Xr2280x;
+//! use hidapi::HidApi;
+//!
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! let hid_api = HidApi::new()?;
+//!
+//! // Open specific device by serial number
+//! let device = Xr2280x::open_by_serial(&hid_api, "ABC123456")?;
+//! println!("Opened device with serial ABC123456");
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! ### Open by Index
+//!
+//! ```no_run
+//! use xr2280x_hid::Xr2280x;
+//! use hidapi::HidApi;
+//!
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! let hid_api = HidApi::new()?;
+//!
+//! // Open the second device found (0-based indexing)
+//! let device = Xr2280x::open_by_index(&hid_api, 1)?;
+//! println!("Opened device at index 1");
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! ### Open by Path
+//!
+//! ```no_run
+//! use xr2280x_hid::Xr2280x;
+//! use hidapi::HidApi;
+//! use std::ffi::CString;
+//!
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! let hid_api = HidApi::new()?;
+//!
+//! // Open device by platform-specific path
+//! let path = CString::new("/dev/hidraw0")?;
+//! let device = Xr2280x::open_by_path(&hid_api, &path)?;
+//! println!("Opened device at path /dev/hidraw0");
+//! # Ok(())
+//! # }
+//! ```
+//!
 //! ## Example Usage
 //!
 //! ### I2C Communication
@@ -135,9 +213,9 @@
 //!     device.gpio_write(led_pin, GpioLevel::High)?;
 //!     let button_state = device.gpio_read(button_pin)?;
 //!     println!("LED ON, Button: {:?}", button_state);
-//!     
+//!
 //!     sleep(Duration::from_millis(500));
-//!     
+//!
 //!     device.gpio_write(led_pin, GpioLevel::Low)?;
 //!     sleep(Duration::from_millis(500));
 //! }
@@ -239,7 +317,7 @@
 //!     let duty_cycle = brightness as f32 / 100.0;
 //!     let high_time = (period_ns as f32 * duty_cycle) as u64;
 //!     let low_time = period_ns - high_time;
-//!     
+//!
 //!     device.pwm_set_periods_ns(PwmChannel::Pwm1, high_time, low_time)?;
 //!     std::thread::sleep(std::time::Duration::from_millis(50));
 //! }
@@ -268,7 +346,7 @@
 //! ```text
 //! # XR2280x I2C Interface
 //! SUBSYSTEM=="hidraw", ATTRS{idVendor}=="04e2", ATTRS{idProduct}=="1100", MODE="0666"
-//! # XR2280x EDGE Interface  
+//! # XR2280x EDGE Interface
 //! SUBSYSTEM=="hidraw", ATTRS{idVendor}=="04e2", ATTRS{idProduct}=="1200", MODE="0666"
 //! ```
 //!
@@ -301,6 +379,35 @@
 //!     },
 //!     Err(Error::DeviceNotFound) => {
 //!         println!("XR2280x device not connected");
+//!     },
+//!     Err(e) => println!("Other error: {}", e),
+//! }
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! ### Multi-Device Selection Errors
+//!
+//! The multi-device selection methods provide specific error types for better error handling:
+//!
+//! ```no_run
+//! use xr2280x_hid::{Xr2280x, Error};
+//! use hidapi::HidApi;
+//!
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! let hid_api = HidApi::new()?;
+//!
+//! // Handle specific multi-device selection errors
+//! match Xr2280x::open_by_serial(&hid_api, "NONEXISTENT") {
+//!     Ok(device) => println!("Device opened successfully"),
+//!     Err(Error::DeviceNotFoundBySerial { serial, message }) => {
+//!         println!("No device found with serial '{}': {}", serial, message);
+//!     },
+//!     Err(Error::DeviceNotFoundByIndex { index, message }) => {
+//!         println!("No device found at index {}: {}", index, message);
+//!     },
+//!     Err(Error::MultipleDevicesFound { count, message }) => {
+//!         println!("Found {} devices when expecting one: {}", count, message);
 //!     },
 //!     Err(e) => println!("Other error: {}", e),
 //! }
@@ -383,6 +490,9 @@ pub use gpio::{GpioDirection, GpioGroup, GpioLevel, GpioPin, GpioPull};
 pub use i2c::{timeouts, I2cAddress};
 pub use interrupt::{GpioInterruptReport, ParsedGpioInterruptReport};
 pub use pwm::{PwmChannel, PwmCommand};
+
+// Re-export essential hidapi types for multi-device selection
+pub use hidapi::{DeviceInfo, HidApi};
 
 // Re-export only essential public constants
 pub use consts::{EXAR_VID, XR2280X_EDGE_PID, XR2280X_I2C_PID};

@@ -116,6 +116,21 @@ pub struct Xr2280x {
 
 impl Xr2280x {
     // --- Constructors and Info ---
+
+    /// Enumerate all available XR2280x devices.
+    /// Returns a Vec of DeviceInfo for all compatible devices found.
+    pub fn enumerate_devices(hid_api: &HidApi) -> Result<Vec<&hidapi::DeviceInfo>> {
+        let devices: Vec<_> = hid_api
+            .device_list()
+            .filter(|info| {
+                info.vendor_id() == consts::EXAR_VID
+                    && (info.product_id() == consts::XR2280X_I2C_PID
+                        || info.product_id() == consts::XR2280X_EDGE_PID)
+            })
+            .collect();
+        Ok(devices)
+    }
+
     /// Opens a device using its discovery info. Recommended method.
     pub fn open(hid_api: &HidApi, info: &XrDeviceDiscoveryInfo) -> Result<Self> {
         Self::open_internal(hid_api.open_path(&info.path), info.vid, info.pid)
@@ -134,23 +149,81 @@ impl Xr2280x {
 
     /// Opens a device by its platform-specific path.
     pub fn open_by_path(hid_api: &HidApi, path: &CStr) -> Result<Self> {
-        let device = hid_api.open_path(path)?;
-        let device_info_hid = device.get_device_info().map_err(Error::Hid)?;
-        Self::open_internal(
-            Ok(device),
-            device_info_hid.vendor_id(),
-            device_info_hid.product_id(),
-        )
+        let device = hid_api
+            .open_path(path)
+            .map_err(|e| Error::DeviceNotFoundByPath {
+                path: format!("{:?}", path),
+                message: format!("{}", e),
+            })?;
+        Self::from_hid_device(device)
     }
 
-    // Internal helper for opening, storing info, and detecting capabilities
-    fn open_internal(
-        device_result: hidapi::HidResult<HidDevice>,
-        vid: u16,
-        pid: u16,
-    ) -> Result<Self> {
-        let device = device_result?;
-        debug!("Opened XR2280x device: VID={:04X}, PID={:04X}", vid, pid);
+    /// Opens a device by its serial number.
+    /// Searches through all XR2280x devices to find one with the matching serial number.
+    pub fn open_by_serial(hid_api: &HidApi, serial: &str) -> Result<Self> {
+        let devices = Self::enumerate_devices(hid_api)?;
+
+        for device_info in devices {
+            if let Some(device_serial) = device_info.serial_number() {
+                if device_serial == serial {
+                    let device = hid_api.open_path(device_info.path()).map_err(|e| {
+                        Error::DeviceNotFoundBySerial {
+                            serial: serial.to_string(),
+                            message: format!("Failed to open device: {}", e),
+                        }
+                    })?;
+                    return Self::from_hid_device(device);
+                }
+            }
+        }
+
+        Err(Error::DeviceNotFoundBySerial {
+            serial: serial.to_string(),
+            message: "No XR2280x device found with this serial number".to_string(),
+        })
+    }
+
+    /// Opens a device by its index in the enumeration order.
+    /// Index is 0-based and corresponds to the order returned by enumerate_devices().
+    pub fn open_by_index(hid_api: &HidApi, index: usize) -> Result<Self> {
+        let devices = Self::enumerate_devices(hid_api)?;
+
+        if index >= devices.len() {
+            return Err(Error::DeviceNotFoundByIndex {
+                index,
+                message: format!("Index out of range (found {} devices)", devices.len()),
+            });
+        }
+
+        let device_info = devices[index];
+        let device =
+            hid_api
+                .open_path(device_info.path())
+                .map_err(|e| Error::DeviceNotFoundByIndex {
+                    index,
+                    message: format!("Failed to open device: {}", e),
+                })?;
+
+        Self::from_hid_device(device)
+    }
+
+    /// Creates an Xr2280x instance from an existing HidDevice.
+    /// This is the core method that other constructors use internally.
+    ///
+    /// # Arguments
+    /// * `device` - An already opened HidDevice handle
+    ///
+    /// # Returns
+    /// A configured Xr2280x instance with capabilities detected.
+    pub fn from_hid_device(device: HidDevice) -> Result<Self> {
+        let device_info_hid = device.get_device_info().map_err(Error::Hid)?;
+        let vid = device_info_hid.vendor_id();
+        let pid = device_info_hid.product_id();
+
+        debug!(
+            "Creating XR2280x from HidDevice: VID={:04X}, PID={:04X}",
+            vid, pid
+        );
 
         let manufacturer_string = device.get_manufacturer_string()?.map(|s| s.to_string());
         let product_string = device.get_product_string()?.map(|s| s.to_string());
@@ -190,6 +263,16 @@ impl Xr2280x {
             info,
             capabilities,
         })
+    }
+
+    // Internal helper for opening with error conversion
+    fn open_internal(
+        device_result: hidapi::HidResult<HidDevice>,
+        _vid: u16,
+        _pid: u16,
+    ) -> Result<Self> {
+        let device = device_result?;
+        Self::from_hid_device(device)
     }
 
     /// Gets basic information about the opened device.

@@ -7,7 +7,7 @@ use xr2280x_hid::{
 };
 
 // Select pin E0
-const BLINK_PIN_NUM: u8 = 0;
+const BLINK_PIN_NUM: u8 = 18;
 
 fn main() -> Result<()> {
     env_logger::init();

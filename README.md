@@ -55,7 +55,7 @@ Add the following to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-xr2280x-hid = "0.9.2" # Replace with the latest version
+xr2280x-hid = "0.9.3" # Replace with the latest version
 hidapi = "2.6"       # Or latest compatible version
 log = "0.4"          # Optional, for logging
 
@@ -117,15 +117,122 @@ fn main() -> Result<()> {
 }
 ```
 
-## Working with Multiple Devices / Custom IDs
+## Multi-Device Selection
 
-If you have multiple XR2280x devices connected, or devices programmed with custom Vendor/Product IDs, use the `find_devices` function and the `open` method for reliable selection:
+When multiple XR2280x devices are connected to the same system, the crate provides several methods to reliably select and open specific devices:
 
-1.  **Find Devices:** Call `xr2280x_hid::find_devices(&hid_api, vid, pid_option)`.
-2.  **Select Device:** Iterate the returned `Vec<XrDeviceDiscoveryInfo>` and choose based on `serial_number`, `path`, etc.
-3.  **Open Device:** Call `xr2280x_hid::Xr2280x::open(&hid_api, &selected_device_info)`.
+### Device Enumeration
 
-See the `examples/list_and_select.rs` example.
+```rust
+use xr2280x_hid::Xr2280x;
+use hidapi::HidApi;
+
+let hid_api = HidApi::new()?;
+
+// Enumerate all XR2280x devices
+let devices = Xr2280x::enumerate_devices(&hid_api)?;
+println!("Found {} XR2280x devices:", devices.len());
+
+for (i, info) in devices.iter().enumerate() {
+    println!("  [{}] Serial: {}, Product: {}, Path: {:?}",
+        i,
+        info.serial_number().unwrap_or("N/A"),
+        info.product_string().unwrap_or("Unknown"),
+        info.path()
+    );
+}
+```
+
+### Opening Devices by Specific Criteria
+
+#### 1. Open by Serial Number
+
+```rust
+// Open specific device by serial number
+let device = Xr2280x::open_by_serial(&hid_api, "ABC123456")?;
+```
+
+#### 2. Open by Index
+
+```rust
+// Open the second device found (0-based indexing)
+let device = Xr2280x::open_by_index(&hid_api, 1)?;
+```
+
+#### 3. Open by Device Path
+
+```rust
+use std::ffi::CString;
+
+// Open device by platform-specific path
+let path = CString::new("/dev/hidraw0")?;
+let device = Xr2280x::open_by_path(&hid_api, &path)?;
+```
+
+#### 4. Open from Existing HidDevice
+
+```rust
+// If you already have an opened HidDevice
+let hid_device = hid_api.open_path(&device_path)?;
+let xr_device = Xr2280x::from_hid_device(hid_device)?;
+```
+
+### Error Handling for Multi-Device Selection
+
+The multi-device selection methods provide specific error types for better error handling:
+
+```rust
+use xr2280x_hid::{Xr2280x, Error};
+
+match Xr2280x::open_by_serial(&hid_api, "NONEXISTENT") {
+    Ok(device) => println!("Device opened successfully"),
+    Err(Error::DeviceNotFoundBySerial { serial, message }) => {
+        println!("No device found with serial '{}': {}", serial, message);
+    },
+    Err(Error::DeviceNotFoundByIndex { index, message }) => {
+        println!("No device found at index {}: {}", index, message);
+    },
+    Err(Error::DeviceNotFoundByPath { path, message }) => {
+        println!("No device found at path '{}': {}", path, message);
+    },
+    Err(e) => println!("Other error: {}", e),
+}
+```
+
+### Interactive Device Selection
+
+For applications that need user selection, you can combine enumeration with user input:
+
+```rust
+let devices = Xr2280x::enumerate_devices(&hid_api)?;
+
+if devices.len() > 1 {
+    // Display devices to user
+    for (i, info) in devices.iter().enumerate() {
+        println!("[{}] {} (Serial: {})", 
+            i, 
+            info.product_string().unwrap_or("XR2280x"),
+            info.serial_number().unwrap_or("N/A")
+        );
+    }
+    
+    // Get user selection
+    let index = get_user_selection()?; // Your input function
+    let device = Xr2280x::open_by_index(&hid_api, index)?;
+} else {
+    let device = Xr2280x::open_first(&hid_api)?;
+}
+```
+
+### Legacy Methods
+
+For compatibility with existing code:
+
+- `find_all(&hid_api)` - Returns `Vec<XrDeviceDiscoveryInfo>` for all devices
+- `find_first(&hid_api)` - Returns the first device's discovery info
+- `open(&hid_api, &device_info)` - Opens using discovery info
+
+See the `examples/list_and_select.rs` and `examples/multi_device_selection.rs` examples for complete demonstrations.
 
 ## Hardware Setup Notes
 
