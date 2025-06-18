@@ -1,6 +1,6 @@
 use hidapi::HidApi;
 use std::io::{self, Write};
-use xr2280x_hid::{self, gpio::GpioPin, Result}; // Import GpioPin
+use xr2280x_hid::{self, Result, gpio::GpioPin}; // Import GpioPin
 
 fn main() -> Result<()> {
     env_logger::init();

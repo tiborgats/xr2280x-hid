@@ -45,18 +45,17 @@ impl Xr2280x {
         // Check support
         self.check_gpio_pin_support(pin)?;
 
-        let (reg_mask, reg_pos, reg_neg) = if pin.group_index() == 0 {
-            (
+        let (reg_mask, reg_pos, reg_neg) = match pin.group_index() {
+            0 => (
                 consts::edge::REG_INTR_MASK_0,
                 consts::edge::REG_INTR_POS_EDGE_0,
                 consts::edge::REG_INTR_NEG_EDGE_0,
-            )
-        } else {
-            (
+            ),
+            _ => (
                 consts::edge::REG_INTR_MASK_1,
                 consts::edge::REG_INTR_POS_EDGE_1,
                 consts::edge::REG_INTR_NEG_EDGE_1,
-            )
+            ),
         };
 
         debug!(
@@ -69,10 +68,9 @@ impl Xr2280x {
 
         // Enable/disable interrupt for this pin
         let mask_val = self.read_hid_register(reg_mask)?;
-        let new_mask = if enable {
-            mask_val | pin.mask()
-        } else {
-            mask_val & !pin.mask()
+        let new_mask = match enable {
+            true => mask_val | pin.mask(),
+            false => mask_val & !pin.mask(),
         };
         self.write_hid_register(reg_mask, new_mask)?;
 
@@ -80,19 +78,17 @@ impl Xr2280x {
         if enable {
             // Positive edge
             let pos_val = self.read_hid_register(reg_pos)?;
-            let new_pos = if positive_edge {
-                pos_val | pin.mask()
-            } else {
-                pos_val & !pin.mask()
+            let new_pos = match positive_edge {
+                true => pos_val | pin.mask(),
+                false => pos_val & !pin.mask(),
             };
             self.write_hid_register(reg_pos, new_pos)?;
 
             // Negative edge
             let neg_val = self.read_hid_register(reg_neg)?;
-            let new_neg = if negative_edge {
-                neg_val | pin.mask()
-            } else {
-                neg_val & !pin.mask()
+            let new_neg = match negative_edge {
+                true => neg_val | pin.mask(),
+                false => neg_val & !pin.mask(),
             };
             self.write_hid_register(reg_neg, new_neg)?;
         }

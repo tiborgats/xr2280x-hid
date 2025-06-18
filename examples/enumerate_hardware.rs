@@ -7,7 +7,7 @@
 //! Run with: cargo run --example enumerate_hardware
 
 use hidapi::HidApi;
-use xr2280x_hid::{device_find_all, Xr2280x};
+use xr2280x_hid::{Xr2280x, device_find_all};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::init();

@@ -1,9 +1,8 @@
 use hidapi::HidApi;
 use std::{thread, time::Duration};
 use xr2280x_hid::{
-    self,
+    self, PwmChannel, PwmCommand, Result,
     gpio::{GpioDirection, GpioPin, GpioPull},
-    PwmChannel, PwmCommand, Result,
 };
 
 const PWM_CHANNEL: PwmChannel = PwmChannel::Pwm0;

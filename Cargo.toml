@@ -1,7 +1,7 @@
 [package]
 name = "xr2280x-hid"
 version = "0.9.4"
-edition = "2021"
+edition = "2024"
 authors = ["Tibor Gats <tibor.gats@gmail.com>"]
 description = "Control XR2280x I2C and GPIO/PWM/Interrupts over USB HID"
 license = "WTFPL"                                                        # crates.io prefers SPDX identifiers.

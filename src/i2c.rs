@@ -690,7 +690,9 @@ impl Xr2280x {
                         "I2C arbitration lost at address 0x{:02X} - this indicates bus contention",
                         addr_7bit
                     );
-                    warn!("Possible causes: multiple I2C masters, electrical interference, or loose connections");
+                    warn!(
+                        "Possible causes: multiple I2C masters, electrical interference, or loose connections"
+                    );
                     warn!("Recommendation: Check wiring, disconnect other I2C devices, and retry");
                     return Err(Error::I2cArbitrationLost { address });
                 }
@@ -757,7 +759,7 @@ impl Xr2280x {
         &self,
         slave_addr: I2cAddress,
         write_data: &[u8],
-        mut read_buffer: Option<&mut [u8]>,
+        read_buffer: Option<&mut [u8]>,
         flags: u8,
         timeout_ms: Option<i32>,
     ) -> Result<()> {
@@ -808,10 +810,8 @@ impl Xr2280x {
         }
 
         // Copy write data for 7-bit or adjusted for 10-bit
-        if let I2cAddress::Bit7(_) = slave_addr {
-            if write_len > 0 {
-                out_buf[4..4 + write_len].copy_from_slice(write_data);
-            }
+        if matches!(slave_addr, I2cAddress::Bit7(_)) && write_len > 0 {
+            out_buf[4..4 + write_len].copy_from_slice(write_data);
         }
 
         debug!(
@@ -822,82 +822,75 @@ impl Xr2280x {
 
         // Send the OUT report
         let i2c_device = self.i2c_device.as_ref().ok_or(Error::DeviceNotFound)?;
-        match i2c_device.write(&out_buf) {
-            Ok(written) if written == out_buf.len() => {
-                trace!("Sent {} bytes to device", written);
-            }
-            Ok(written) => {
-                warn!("Partial write: sent {} of {} bytes", written, out_buf.len());
-                return Err(Error::Io(std::io::Error::other("Partial HID write")));
-            }
-            Err(e) => return Err(Error::Hid(e)),
+        let written = i2c_device.write(&out_buf).map_err(Error::Hid)?;
+
+        if written != out_buf.len() {
+            warn!("Partial write: sent {} of {} bytes", written, out_buf.len());
+            return Err(Error::Io(std::io::Error::other("Partial HID write")));
         }
+        trace!("Sent {} bytes to device", written);
 
         // Always read the status response from device (even for write-only operations)
         let mut in_buf = vec![0u8; consts::i2c::IN_REPORT_READ_BUF_SIZE];
-        match i2c_device.read_timeout(&mut in_buf, timeout) {
-            Ok(received) => {
-                trace!(
-                    "Received {} bytes from device: {:02X?}",
-                    received,
-                    &in_buf[..received]
+        let received = i2c_device
+            .read_timeout(&mut in_buf, timeout)
+            .map_err(Error::Hid)?;
+
+        trace!(
+            "Received {} bytes from device: {:02X?}",
+            received,
+            &in_buf[..received]
+        );
+
+        if received < 4 {
+            return Err(Error::InvalidReport(received));
+        }
+
+        // Check status flags
+        let status_flags = in_buf[0];
+        if status_flags & consts::i2c::in_flags::REQUEST_ERROR != 0 {
+            return Err(Error::I2cRequestError {
+                address: slave_addr,
+            });
+        }
+        if status_flags & consts::i2c::in_flags::NAK_RECEIVED != 0 {
+            return Err(Error::I2cNack {
+                address: slave_addr,
+            });
+        }
+        if status_flags & consts::i2c::in_flags::ARBITRATION_LOST != 0 {
+            return Err(Error::I2cArbitrationLost {
+                address: slave_addr,
+            });
+        }
+        if status_flags & consts::i2c::in_flags::TIMEOUT != 0 {
+            return Err(Error::I2cTimeout {
+                address: slave_addr,
+            });
+        }
+        if status_flags & 0x0F != 0 {
+            // Any other error bits set
+            return Err(Error::I2cUnknownError {
+                address: slave_addr,
+                flags: status_flags,
+            });
+        }
+
+        // Extract read data only if reading was requested
+        if read_len > 0 {
+            let reported_read_len = in_buf[2] as usize;
+            if reported_read_len != read_len {
+                warn!(
+                    "I2C read length mismatch: expected {}, got {}",
+                    read_len, reported_read_len
                 );
-                if received < 4 {
-                    return Err(Error::InvalidReport(received));
-                }
-
-                // Check status flags
-                let status_flags = in_buf[0];
-                if status_flags & consts::i2c::in_flags::REQUEST_ERROR != 0 {
-                    return Err(Error::I2cRequestError {
-                        address: slave_addr,
-                    });
-                }
-                if status_flags & consts::i2c::in_flags::NAK_RECEIVED != 0 {
-                    return Err(Error::I2cNack {
-                        address: slave_addr,
-                    });
-                }
-                if status_flags & consts::i2c::in_flags::ARBITRATION_LOST != 0 {
-                    return Err(Error::I2cArbitrationLost {
-                        address: slave_addr,
-                    });
-                }
-                if status_flags & consts::i2c::in_flags::TIMEOUT != 0 {
-                    return Err(Error::I2cTimeout {
-                        address: slave_addr,
-                    });
-                }
-                if status_flags & 0x0F != 0 {
-                    // Any other error bits set
-                    return Err(Error::I2cUnknownError {
-                        address: slave_addr,
-                        flags: status_flags,
-                    });
-                }
-
-                // Extract read data only if reading was requested
-                if read_len > 0 {
-                    let reported_read_len = in_buf[2] as usize;
-                    if reported_read_len != read_len {
-                        warn!(
-                            "I2C read length mismatch: expected {}, got {}",
-                            read_len, reported_read_len
-                        );
-                    }
-                    let actual_read_len = reported_read_len
-                        .min(read_len)
-                        .min(received.saturating_sub(4));
-
-                    if let Some(ref mut read_buf) = read_buffer {
-                        read_buf[..actual_read_len]
-                            .copy_from_slice(&in_buf[4..4 + actual_read_len]);
-                    }
-                }
             }
-            Err(e) => {
-                warn!("I2C read timeout or error: {}", e);
-                return Err(Error::Hid(e));
+            let actual_read_len = reported_read_len
+                .min(read_len)
+                .min(received.saturating_sub(4));
+
+            if let Some(read_buf) = read_buffer {
+                read_buf[..actual_read_len].copy_from_slice(&in_buf[4..4 + actual_read_len]);
             }
         }
 

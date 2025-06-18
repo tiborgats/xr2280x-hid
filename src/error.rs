@@ -68,25 +68,33 @@ pub enum Error {
         message: String,
     },
     /// I2C slave device responded with NACK (not acknowledged).
-    #[error("No device found at I2C address {address}: Device did not acknowledge (NACK). This is normal when scanning for devices.")]
+    #[error(
+        "No device found at I2C address {address}: Device did not acknowledge (NACK). This is normal when scanning for devices."
+    )]
     I2cNack {
         /// The I2C address that sent the NACK.
         address: I2cAddress,
     },
     /// I2C bus arbitration was lost during transaction.
-    #[error("I2C bus conflict at address {address}: Arbitration lost (multiple masters competing for bus control). Check for other I2C controllers, loose connections, or electrical interference. Try disconnecting other devices and retrying.")]
+    #[error(
+        "I2C bus conflict at address {address}: Arbitration lost (multiple masters competing for bus control). Check for other I2C controllers, loose connections, or electrical interference. Try disconnecting other devices and retrying."
+    )]
     I2cArbitrationLost {
         /// The I2C address being accessed when arbitration was lost.
         address: I2cAddress,
     },
     /// I2C bus timeout occurred during transaction.
-    #[error("I2C timeout at address {address}: Device did not respond within timeout period. This may indicate: stuck bus (unpowered device holding lines low), very slow device, or hardware issues. Check device power and connections.")]
+    #[error(
+        "I2C timeout at address {address}: Device did not respond within timeout period. This may indicate: stuck bus (unpowered device holding lines low), very slow device, or hardware issues. Check device power and connections."
+    )]
     I2cTimeout {
         /// The I2C address being accessed when timeout occurred.
         address: I2cAddress,
     }, // Keep specific I2C timeout
     /// I2C transaction failed due to invalid request parameters.
-    #[error("I2C request error at address {address}: Invalid parameters sent to XR2280x firmware. Check data length (max 32 bytes), address validity, and operation flags.")]
+    #[error(
+        "I2C request error at address {address}: Invalid parameters sent to XR2280x firmware. Check data length (max 32 bytes), address validity, and operation flags."
+    )]
     I2cRequestError {
         /// The I2C address being accessed when the error occurred.
         address: I2cAddress,
@@ -102,7 +110,9 @@ pub enum Error {
         flags: u8,
     },
     /// HID feature report operation failed.
-    #[error("Feature report error (e.g., incorrect length, device error) while accessing register 0x{reg_addr:04X}")]
+    #[error(
+        "Feature report error (e.g., incorrect length, device error) while accessing register 0x{reg_addr:04X}"
+    )]
     FeatureReportError {
         /// The register address that was being accessed.
         reg_addr: u16,

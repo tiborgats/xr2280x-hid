@@ -1,9 +1,8 @@
 use hidapi::HidApi;
 use std::{thread, time::Duration};
 use xr2280x_hid::{
-    self,
+    self, Result,
     gpio::{GpioDirection, GpioLevel, GpioPin, GpioPull},
-    Result,
 };
 
 // Select pin E0

@@ -485,12 +485,12 @@ pub mod pwm;
 
 // Re-export main types and functions
 pub use device::{
-    device_find, device_find_all, device_find_first, Capabilities, Xr2280x, XrDeviceDetails,
-    XrDeviceInfo,
+    Capabilities, Xr2280x, XrDeviceDetails, XrDeviceInfo, device_find, device_find_all,
+    device_find_first,
 };
 pub use error::{Error, Result};
 pub use gpio::{GpioDirection, GpioGroup, GpioLevel, GpioPin, GpioPull};
-pub use i2c::{timeouts, I2cAddress};
+pub use i2c::{I2cAddress, timeouts};
 pub use interrupt::{GpioInterruptReport, ParsedGpioInterruptReport};
 pub use pwm::{PwmChannel, PwmCommand};
 

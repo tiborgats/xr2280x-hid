@@ -5,7 +5,7 @@
 
 use hidapi::HidApi;
 use std::time::Instant;
-use xr2280x_hid::{timeouts, Error, Result, Xr2280x};
+use xr2280x_hid::{Error, Result, Xr2280x, timeouts};
 
 fn main() -> Result<()> {
     env_logger::init();

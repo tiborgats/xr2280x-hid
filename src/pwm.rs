@@ -2,7 +2,7 @@
 
 use crate::consts;
 use crate::device::Xr2280x;
-use crate::error::{unsupported_pwm_pin, Error, Result};
+use crate::error::{Error, Result, unsupported_pwm_pin};
 use crate::gpio::GpioPin;
 use log::{debug, trace};
 
@@ -82,11 +82,15 @@ impl Xr2280x {
             PwmChannel::Pwm0 => (consts::edge::REG_PWM0_HIGH, consts::edge::REG_PWM0_LOW),
             PwmChannel::Pwm1 => (consts::edge::REG_PWM1_HIGH, consts::edge::REG_PWM1_LOW),
         };
-        if !(1..=4095).contains(&high_units) || !(1..=4095).contains(&low_units) {
-            return Err(Error::ArgumentOutOfRange(format!(
-                "PWM period units must be 1-4095 (got high={}, low={})",
-                high_units, low_units
-            )));
+
+        match (high_units, low_units) {
+            (1..=4095, 1..=4095) => {} // Valid range
+            _ => {
+                return Err(Error::ArgumentOutOfRange(format!(
+                    "PWM period units must be 1-4095 (got high={}, low={})",
+                    high_units, low_units
+                )));
+            }
         }
         debug!(
             "Setting {:?} periods: high={} units, low={} units",
@@ -114,9 +118,7 @@ impl Xr2280x {
         let low_units = self.read_hid_register(reg_low)?;
         trace!(
             "Read {:?} periods: high={} units, low={} units",
-            channel,
-            high_units,
-            low_units
+            channel, high_units, low_units
         );
         Ok((high_units, low_units))
     }
@@ -136,6 +138,7 @@ impl Xr2280x {
         if self.capabilities.gpio_count == 8 && pin.number() > 7 {
             return Err(unsupported_pwm_pin(pin.number()));
         }
+
         let reg = match channel {
             PwmChannel::Pwm0 => consts::edge::REG_PWM0_CTRL,
             PwmChannel::Pwm1 => consts::edge::REG_PWM1_CTRL,
@@ -182,14 +185,14 @@ impl Xr2280x {
             PwmCommand::AssertLow => consts::edge::pwm_ctrl::CMD_ASSERT_LOW,
             PwmCommand::OneShot => consts::edge::pwm_ctrl::CMD_ONE_SHOT,
             PwmCommand::FreeRun => consts::edge::pwm_ctrl::CMD_FREE_RUN,
-            PwmCommand::Undefined(raw) => {
-                if raw & !0b111 != 0 {
+            PwmCommand::Undefined(raw) => match raw & !0b111 {
+                0 => raw,
+                _ => {
                     return Err(Error::ArgumentOutOfRange(
                         "PWM command raw value must fit in 3 bits".to_string(),
                     ));
                 }
-                raw
-            }
+            },
         };
         let cmd_shifted = cmd_bits << consts::edge::pwm_ctrl::CMD_SHIFT;
         let new_value = (current
@@ -223,9 +226,7 @@ impl Xr2280x {
         };
         trace!(
             "Read {:?} control: enabled={}, command={:?}",
-            channel,
-            enabled,
-            command
+            channel, enabled, command
         );
         Ok((enabled, command))
     }

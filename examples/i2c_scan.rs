@@ -6,16 +6,13 @@ fn main() -> Result<()> {
     env_logger::init();
     let hid_api = HidApi::new()?;
     println!("Opening first XR2280x device...");
-    let device = match xr2280x_hid::Xr2280x::device_open_first(&hid_api) {
-        Ok(dev) => dev,
-        Err(e) => {
-            eprintln!("Error opening device: {}", e);
-            eprintln!(
-                "Ensure device is connected and permissions are set (e.g., udev rules on Linux)."
-            );
-            return Err(e);
-        }
-    };
+    let device = xr2280x_hid::Xr2280x::device_open_first(&hid_api).map_err(|e| {
+        eprintln!("Error opening device: {}", e);
+        eprintln!(
+            "Ensure device is connected and permissions are set (e.g., udev rules on Linux)."
+        );
+        e
+    })?;
     println!("Device opened.");
 
     println!("Setting I2C speed to 100kHz...");
@@ -46,7 +43,7 @@ fn main() -> Result<()> {
                     found_devices
                         .iter()
                         .map(|a| format!("0x{:02X}", a))
-                        .collect::<Vec<_>>()
+                        .collect::<Vec<String>>()
                         .join(", ")
                 );
             }

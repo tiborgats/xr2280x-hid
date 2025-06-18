@@ -63,10 +63,10 @@ pub fn device_find(hid_api: &HidApi) -> impl Iterator<Item = XrDeviceInfo> + '_ 
                 });
 
             // Assign to appropriate interface based on PID
-            if info.pid == consts::XR2280X_I2C_PID {
-                device.i2c_interface = Some(info);
-            } else if info.pid == consts::XR2280X_EDGE_PID {
-                device.edge_interface = Some(info);
+            match info.pid {
+                consts::XR2280X_I2C_PID => device.i2c_interface = Some(info),
+                consts::XR2280X_EDGE_PID => device.edge_interface = Some(info),
+                _ => {} // Unknown PID, ignore
             }
         } else {
             // Handle devices without serial numbers (create separate entries)
@@ -78,10 +78,10 @@ pub fn device_find(hid_api: &HidApi) -> impl Iterator<Item = XrDeviceInfo> + '_ 
                 edge_interface: None,
             };
 
-            if info.pid == consts::XR2280X_I2C_PID {
-                device.i2c_interface = Some(info);
-            } else if info.pid == consts::XR2280X_EDGE_PID {
-                device.edge_interface = Some(info);
+            match info.pid {
+                consts::XR2280X_I2C_PID => device.i2c_interface = Some(info),
+                consts::XR2280X_EDGE_PID => device.edge_interface = Some(info),
+                _ => {} // Unknown PID, ignore
             }
 
             devices_without_serial.push(device);
@@ -123,8 +123,10 @@ fn find_logical_devices(hid_api: &HidApi) -> impl Iterator<Item = InterfaceInfo>
         .device_list()
         .filter(|info| {
             info.vendor_id() == consts::EXAR_VID
-                && (info.product_id() == consts::XR2280X_I2C_PID
-                    || info.product_id() == consts::XR2280X_EDGE_PID)
+                && matches!(
+                    info.product_id(),
+                    consts::XR2280X_I2C_PID | consts::XR2280X_EDGE_PID
+                )
         })
         .map(|info| {
             debug!(
@@ -242,12 +244,10 @@ impl Xr2280x {
         let device = hid_api.open(vid, pid)?;
 
         // Determine which interface this is and assign appropriately
-        if pid == consts::XR2280X_I2C_PID {
-            Self::from_hid_devices(Some(device), None)
-        } else if pid == consts::XR2280X_EDGE_PID {
-            Self::from_hid_devices(None, Some(device))
-        } else {
-            Self::from_hid_devices(Some(device), None) // Default to I2C for unknown PIDs
+        match pid {
+            consts::XR2280X_I2C_PID => Self::from_hid_devices(Some(device), None),
+            consts::XR2280X_EDGE_PID => Self::from_hid_devices(None, Some(device)),
+            _ => Self::from_hid_devices(Some(device), None), // Default to I2C for unknown PIDs
         }
     }
 
@@ -265,12 +265,10 @@ impl Xr2280x {
         let pid = device_info_hid.product_id();
 
         // Determine which interface this is and assign appropriately
-        if pid == consts::XR2280X_I2C_PID {
-            Self::from_hid_devices(Some(device), None)
-        } else if pid == consts::XR2280X_EDGE_PID {
-            Self::from_hid_devices(None, Some(device))
-        } else {
-            Self::from_hid_devices(Some(device), None) // Default to I2C for unknown PIDs
+        match pid {
+            consts::XR2280X_I2C_PID => Self::from_hid_devices(Some(device), None),
+            consts::XR2280X_EDGE_PID => Self::from_hid_devices(None, Some(device)),
+            _ => Self::from_hid_devices(Some(device), None), // Default to I2C for unknown PIDs
         }
     }
 
@@ -322,13 +320,10 @@ impl Xr2280x {
         edge_device: Option<HidDevice>,
     ) -> Result<Self> {
         // Use the first available device for device info extraction
-        let info_device = if let Some(ref device) = edge_device {
-            device
-        } else if let Some(ref device) = i2c_device {
-            device
-        } else {
-            return Err(Error::DeviceNotFound);
-        };
+        let info_device = edge_device
+            .as_ref()
+            .or(i2c_device.as_ref())
+            .ok_or(Error::DeviceNotFound)?;
 
         let device_info_hid = info_device.get_device_info().map_err(Error::Hid)?;
         let vid = device_info_hid.vendor_id();

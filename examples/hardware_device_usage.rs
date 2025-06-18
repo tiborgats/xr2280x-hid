@@ -10,7 +10,7 @@ use hidapi::HidApi;
 use std::thread::sleep;
 use std::time::Duration;
 use xr2280x_hid::{
-    device_find_first, GpioDirection, GpioLevel, GpioPin, PwmChannel, PwmCommand, Xr2280x,
+    GpioDirection, GpioLevel, GpioPin, PwmChannel, PwmCommand, Xr2280x, device_find_first,
 };
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {

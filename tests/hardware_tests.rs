@@ -2,9 +2,8 @@
 use hidapi::HidApi;
 use std::{thread, time::Duration};
 use xr2280x_hid::{
-    self, flags,
+    self, I2cAddress, PwmChannel, PwmCommand, Result, flags,
     gpio::{GpioDirection, GpioLevel, GpioPin, GpioPull},
-    I2cAddress, PwmChannel, PwmCommand, Result,
 }; // Import the public flags module
 
 // Helper to open the first device, panics on failure for test simplicity

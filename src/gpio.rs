@@ -2,7 +2,7 @@
 
 use crate::consts;
 use crate::device::Xr2280x;
-use crate::error::{unsupported_gpio_group1, Error, Result};
+use crate::error::{Error, Result, unsupported_gpio_group1};
 use log::{debug, trace};
 
 /// Represents a GPIO group for bulk operations.
@@ -90,10 +90,9 @@ impl Xr2280x {
     /// Assigns a GPIO pin to the EDGE controller (required before using GPIO functions).
     pub fn gpio_assign_to_edge(&self, pin: GpioPin) -> Result<()> {
         self.check_gpio_pin_support(pin)?;
-        let reg = if pin.group_index() == 0 {
-            consts::edge::REG_FUNC_SEL_0
-        } else {
-            consts::edge::REG_FUNC_SEL_1
+        let reg = match pin.group_index() {
+            0 => consts::edge::REG_FUNC_SEL_0,
+            _ => consts::edge::REG_FUNC_SEL_1,
         };
         let current = self.read_hid_register(reg)?;
         let new_value = current | pin.mask();
@@ -105,10 +104,9 @@ impl Xr2280x {
     /// Checks if a GPIO pin is assigned to the EDGE controller.
     pub fn gpio_is_assigned_to_edge(&self, pin: GpioPin) -> Result<bool> {
         self.check_gpio_pin_support(pin)?;
-        let reg = if pin.group_index() == 0 {
-            consts::edge::REG_FUNC_SEL_0
-        } else {
-            consts::edge::REG_FUNC_SEL_1
+        let reg = match pin.group_index() {
+            0 => consts::edge::REG_FUNC_SEL_0,
+            _ => consts::edge::REG_FUNC_SEL_1,
         };
         let value = self.read_hid_register(reg)?;
         Ok((value & pin.mask()) != 0)
@@ -117,10 +115,9 @@ impl Xr2280x {
     /// Sets the direction of a GPIO pin (Input or Output).
     pub fn gpio_set_direction(&self, pin: GpioPin, direction: GpioDirection) -> Result<()> {
         self.check_gpio_pin_support(pin)?;
-        let reg = if pin.group_index() == 0 {
-            consts::edge::REG_DIR_0
-        } else {
-            consts::edge::REG_DIR_1
+        let reg = match pin.group_index() {
+            0 => consts::edge::REG_DIR_0,
+            _ => consts::edge::REG_DIR_1,
         };
         let current = self.read_hid_register(reg)?;
         let new_value = match direction {
@@ -139,26 +136,23 @@ impl Xr2280x {
     /// Gets the direction of a GPIO pin (Input or Output).
     pub fn gpio_get_direction(&self, pin: GpioPin) -> Result<GpioDirection> {
         self.check_gpio_pin_support(pin)?;
-        let reg = if pin.group_index() == 0 {
-            consts::edge::REG_DIR_0
-        } else {
-            consts::edge::REG_DIR_1
+        let reg = match pin.group_index() {
+            0 => consts::edge::REG_DIR_0,
+            _ => consts::edge::REG_DIR_1,
         };
         let value = self.read_hid_register(reg)?;
-        Ok(if (value & pin.mask()) != 0 {
-            GpioDirection::Output
-        } else {
-            GpioDirection::Input
+        Ok(match (value & pin.mask()) != 0 {
+            true => GpioDirection::Output,
+            false => GpioDirection::Input,
         })
     }
 
     /// Writes a level to a GPIO pin configured as output.
     pub fn gpio_write(&self, pin: GpioPin, level: GpioLevel) -> Result<()> {
         self.check_gpio_pin_support(pin)?;
-        let (reg_set, reg_clear) = if pin.group_index() == 0 {
-            (consts::edge::REG_SET_0, consts::edge::REG_CLEAR_0)
-        } else {
-            (consts::edge::REG_SET_1, consts::edge::REG_CLEAR_1)
+        let (reg_set, reg_clear) = match pin.group_index() {
+            0 => (consts::edge::REG_SET_0, consts::edge::REG_CLEAR_0),
+            _ => (consts::edge::REG_SET_1, consts::edge::REG_CLEAR_1),
         };
         debug!(
             "Writing {:?} to GPIO pin {} (mask=0x{:04X})",
@@ -176,16 +170,14 @@ impl Xr2280x {
     /// Reads the current level of a GPIO pin.
     pub fn gpio_read(&self, pin: GpioPin) -> Result<GpioLevel> {
         self.check_gpio_pin_support(pin)?;
-        let reg = if pin.group_index() == 0 {
-            consts::edge::REG_STATE_0
-        } else {
-            consts::edge::REG_STATE_1
+        let reg = match pin.group_index() {
+            0 => consts::edge::REG_STATE_0,
+            _ => consts::edge::REG_STATE_1,
         };
         let value = self.read_hid_register(reg)?;
-        let level = if (value & pin.mask()) != 0 {
-            GpioLevel::High
-        } else {
-            GpioLevel::Low
+        let level = match (value & pin.mask()) != 0 {
+            true => GpioLevel::High,
+            false => GpioLevel::Low,
         };
         trace!("Read {:?} from GPIO pin {}", level, pin.number());
         Ok(level)
@@ -194,10 +186,9 @@ impl Xr2280x {
     /// Sets the pull resistor configuration for a GPIO pin.
     pub fn gpio_set_pull(&self, pin: GpioPin, pull: GpioPull) -> Result<()> {
         self.check_gpio_pin_support(pin)?;
-        let (reg_up, reg_down) = if pin.group_index() == 0 {
-            (consts::edge::REG_PULL_UP_0, consts::edge::REG_PULL_DOWN_0)
-        } else {
-            (consts::edge::REG_PULL_UP_1, consts::edge::REG_PULL_DOWN_1)
+        let (reg_up, reg_down) = match pin.group_index() {
+            0 => (consts::edge::REG_PULL_UP_0, consts::edge::REG_PULL_DOWN_0),
+            _ => (consts::edge::REG_PULL_UP_1, consts::edge::REG_PULL_DOWN_1),
         };
 
         debug!("Setting GPIO pin {} pull to {:?}", pin.number(), pull);
@@ -231,10 +222,9 @@ impl Xr2280x {
     /// Gets the pull resistor configuration for a GPIO pin.
     pub fn gpio_get_pull(&self, pin: GpioPin) -> Result<GpioPull> {
         self.check_gpio_pin_support(pin)?;
-        let (reg_up, reg_down) = if pin.group_index() == 0 {
-            (consts::edge::REG_PULL_UP_0, consts::edge::REG_PULL_DOWN_0)
-        } else {
-            (consts::edge::REG_PULL_UP_1, consts::edge::REG_PULL_DOWN_1)
+        let (reg_up, reg_down) = match pin.group_index() {
+            0 => (consts::edge::REG_PULL_UP_0, consts::edge::REG_PULL_DOWN_0),
+            _ => (consts::edge::REG_PULL_UP_1, consts::edge::REG_PULL_DOWN_1),
         };
 
         let up_val = self.read_hid_register(reg_up)?;

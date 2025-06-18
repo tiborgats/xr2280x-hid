@@ -116,7 +116,9 @@ fn main() -> Result<()> {
         println!("Next steps:");
         println!("- Use device.i2c_write_7bit(addr, &data) to write data");
         println!("- Use device.i2c_read_7bit(addr, &mut buffer) to read data");
-        println!("- Use device.i2c_write_read_7bit(addr, &write_data, &mut read_buffer) for register access");
+        println!(
+            "- Use device.i2c_write_read_7bit(addr, &write_data, &mut read_buffer) for register access"
+        );
     }
 
     Ok(())

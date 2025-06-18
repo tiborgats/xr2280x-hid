@@ -24,7 +24,7 @@ pub mod i2c {
     pub const REPORT_MAX_DATA_SIZE: usize = 32;
     // Size of buffer passed to hidapi write() (no Report ID byte)
     pub const OUT_REPORT_WRITE_BUF_SIZE: usize = 36; // Flags(1) + WrSize(1) + RdSize(1) + SlaveAddr(1) + Data(32)
-                                                     // Expected size of buffer received from hidapi read() (no Report ID byte assumed)
+    // Expected size of buffer received from hidapi read() (no Report ID byte assumed)
     pub const IN_REPORT_READ_BUF_SIZE: usize = 36; // Flags(1) + WrSize(1) + RdSize(1) + Reserved(1) + Data(32)
 
     // Register Addresses
@@ -40,8 +40,8 @@ pub mod i2c {
         /// Send ACK after last read byte (default is NACK).
         #[allow(dead_code)] // Used externally via i2c_transfer_raw
         pub const ACK_LAST_READ: u8 = 1 << 2; // Default is NACK last read
-                                              // Bits 3 reserved
-                                              // Bits 7..4 Sequence number (optional)
+        // Bits 3 reserved
+        // Bits 7..4 Sequence number (optional)
     }
 
     // I2C_SLAVE_IN Status Flags (Byte 0 of IN report buffer)
