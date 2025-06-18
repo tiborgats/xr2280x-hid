@@ -11,7 +11,7 @@ This crate provides a **hardware-centric API** that groups USB logical interface
 
 Key advantages:
 - **Unified Device Access**: Single handle for both I²C and GPIO/PWM (no separate logical device management)
-- **Hardware Device Grouping**: Logical USB interfaces grouped by serial number into hardware devices  
+- **Hardware Device Grouping**: Logical USB interfaces grouped by serial number into hardware devices
 - **Deterministic Ordering**: Consistent device enumeration ordered by serial number
 - **Simplified Multi-Device Support**: Easy selection when multiple XR2280x devices are connected
 
@@ -65,7 +65,7 @@ Add the following to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-xr2280x-hid = "0.9.3" # Replace with the latest version
+xr2280x-hid = "0.9.4" # Replace with the latest version
 hidapi = "2.6"       # Or latest compatible version
 log = "0.4"          # Optional, for logging
 
@@ -73,6 +73,8 @@ log = "0.4"          # Optional, for logging
 env_logger = "0.11"
 approx = "0.5"
 ```
+
+**Rust Edition**: This crate uses Rust 2024 edition and requires Rust 1.82.0 or later.
 
 You also need the `hidapi` library installed on your system. See the [`hidapi` crate documentation](https://docs.rs/hidapi/) for details.
 
@@ -100,7 +102,7 @@ fn main() -> Result<()> {
             return Err(e);
         }
     };
-    println!("Device opened (first found). Info: {:?}", device.get_device_info()?);
+    println!("Device opened (first found). Info: {:?}", device.get_device_info());
     println!("Detected capabilities: {:?}", device.get_capabilities());
 
 
@@ -111,7 +113,7 @@ fn main() -> Result<()> {
     // --- GPIO Example (Pin E0 / GPIO 0) ---
     let gpio_pin = GpioPin::new(0)?; // Use typed pin
     println!("\n--- GPIO Example (Pin {}) ---", gpio_pin.number());
-    device.gpio_assign_to_edge(gpio_pin, true)?; // Assign E0 to EDGE
+    device.gpio_assign_to_edge(gpio_pin)?; // Assign E0 to EDGE
     device.gpio_set_direction(gpio_pin, GpioDirection::Output)?;
     device.gpio_set_pull(gpio_pin, xr2280x_hid::gpio::GpioPull::None)?;
 
@@ -217,13 +219,13 @@ let devices = Xr2280x::device_enumerate(&hid_api)?;
 if devices.len() > 1 {
     // Display devices to user
     for (i, info) in devices.iter().enumerate() {
-        println!("[{}] {} (Serial: {})", 
-            i, 
+        println!("[{}] {} (Serial: {})",
+            i,
             info.product_string.as_deref().unwrap_or("XR2280x"),
             info.serial_number.as_deref().unwrap_or("N/A")
         );
     }
-    
+
     // Get user selection
     let index = get_user_selection()?; // Your input function
     let device = Xr2280x::open_by_index(&hid_api, index)?;
@@ -250,7 +252,7 @@ See the `examples/enumerate_hardware.rs` and `examples/multi_device_selection.rs
     # Rule for Exar/MaxLinear XR2280x HID Interfaces (Default PIDs: I2C=1100, EDGE=1200)
     SUBSYSTEM=="hidraw", ATTRS{idVendor}=="04e2", ATTRS{idProduct}=="1100", MODE="0666", GROUP="plugdev"
     SUBSYSTEM=="hidraw", ATTRS{idVendor}=="04e2", ATTRS{idProduct}=="1200", MODE="0666", GROUP="plugdev"
-    
+
     # Add similar rules if using custom VID/PIDs
     # SUBSYSTEM=="hidraw", ATTRS{idVendor}=="YOUR_VID", ATTRS{idProduct}=="YOUR_PID", MODE="0666", GROUP="plugdev"
     ```
@@ -347,22 +349,10 @@ cargo test -- --ignored --test-threads=1
 
 ### Code modification
 
-After modifying the source code, check it with RustFmt
+After modifying the source code, check it
 
 ```sh
-cargo fmt --check
-```
-
-modify automatically:
-
-```sh
-cargo fmt
-```
-
-Check with Clippy too:
-
-```sh
-cargo clippy --all-targets -- -D warnings
+pre-release-check.sh
 ```
 
 ## License

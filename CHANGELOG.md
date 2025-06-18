@@ -8,45 +8,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.9.4] - 2025-01-27
 
 ### Added
-- **Device Grouping**: Revolutionary new approach grouping logical USB interfaces by physical device
-  - `XrDeviceInfo` - Groups logical USB interfaces by device (serial number)
-  - `device_find_all()` - Enumerate devices instead of logical interfaces
-  - `device_find_first()` - Find first device with unified interface access
-  - `device_find()` - Iterator over devices with deterministic ordering
-  - `Xr2280x::device_enumerate()` - Device enumeration method
-  - `Xr2280x::device_open()` - Open complete device with both I2C and EDGE interfaces
-  - `Xr2280x::device_open_first()` - Open first device found
-- **Unified Device Access**: Single device handle provides access to both I2C and GPIO/PWM functionality
-  - Eliminates need to manage separate logical device connections
-  - Automatic interface routing based on register addresses
-  - Device-centric view matching physical device reality
-- **Deterministic Device Ordering**: Devices ordered by serial number for consistent enumeration
-- **Clean, Simplified API**: Consistent naming convention with `device_*` prefix
-- **New Examples**:
-  - `enumerate_hardware.rs` - Demonstrates device enumeration
-  - `hardware_device_usage.rs` - Complete usage example with unified device access
+- **Rust 2024 Edition Support**: Full modernization to Rust 2024 edition
+- **Enhanced Pattern Matching**: Improved `match` expressions throughout codebase for better readability
+- **Modern Error Handling**: More idiomatic error propagation patterns using `?` operator
+- **Code Quality Improvements**: Modernized iterators, imports, and type inference
 
 ### Changed
-- **BREAKING**: Complete API redesign with consistent `device_*` naming convention
-- **BREAKING**: New structure `XrDeviceInfo` replaces logical device discovery
-- **BREAKING**: Previous `XrDeviceInfo` renamed to `XrDeviceDetails`
-- **BREAKING**: `Xr2280x` internal structure now holds separate `i2c_device` and `edge_device` handles
-- **BREAKING**: Register access methods automatically route to appropriate interface device
-- **BREAKING**: Device enumeration now groups logical interfaces by device
-- **BREAKING**: `get_device_info()` now returns `XrDeviceDetails` directly (not wrapped in `Result`)
-- Updated all documentation examples to use new device API
-- Enhanced error messages and streamlined public API surface
-- Simplified terminology: "device" instead of "hardware device"
+- **Rust Edition**: Updated from 2021 to 2024 in Cargo.toml (requires Rust 1.82.0+)
+- **Pattern Matching**: Converted `if-else` chains to `match` expressions for better readability
+  - GPIO register access patterns
+  - Device interface handling
+  - Error condition checking
+  - PWM parameter validation
+- **Import Organization**: Reordered imports for better consistency and readability
+- **Code Formatting**: Applied consistent Rust 2024 formatting throughout codebase
+- **String Conversions**: More idiomatic use of `ToString` trait and string handling
+- **Iterator Patterns**: Enhanced use of modern iterator methods and patterns
 
-### Removed
-- All previous device discovery and opening functions (replaced by `device_*` API)
-- Internal logical device discovery structures from public API
+### Technical Details
+- **Zero Breaking Changes**: Full API compatibility maintained
+- **Performance**: Reduced unnecessary cloning and improved iterator usage
+- **Tooling**: Enhanced clippy compliance and formatting consistency
+- **Documentation**: Updated README.md to mention Rust 2024 edition requirement
+- **Examples**: All examples modernized with Rust 2024 patterns
 
 ### Fixed
-- Device enumeration now properly represents physical devices rather than logical USB interfaces
-- Eliminated confusion between multiple logical devices from single device
-- Consistent device ordering across different enumeration methods
-- Consistent naming convention throughout the codebase
+- Improved code consistency and maintainability across all modules
+- Enhanced error handling patterns throughout the codebase
+- Better type inference and reduced redundant type annotations
 
 ## [0.9.3] - 2025-06-16
 
