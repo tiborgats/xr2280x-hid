@@ -401,7 +401,7 @@ impl Xr2280x {
     // Wrap HID errors with register context
     pub(crate) fn write_hid_register(&self, reg_addr: u16, value: u16) -> Result<()> {
         // Determine which device to use based on register address
-        let device = if reg_addr >= 0x0340 && reg_addr <= 0x0342 {
+        let device = if (0x0340..=0x0342).contains(&reg_addr) {
             // I2C registers
             self.i2c_device.as_ref().ok_or(Error::DeviceNotFound)?
         } else {
@@ -433,7 +433,7 @@ impl Xr2280x {
 
     pub(crate) fn set_hid_read_address(&self, reg_addr: u16) -> Result<()> {
         // Determine which device to use based on register address
-        let device = if reg_addr >= 0x0340 && reg_addr <= 0x0342 {
+        let device = if (0x0340..=0x0342).contains(&reg_addr) {
             // I2C registers
             self.i2c_device.as_ref().ok_or(Error::DeviceNotFound)?
         } else {
@@ -464,7 +464,7 @@ impl Xr2280x {
         self.set_hid_read_address(reg_addr)?;
 
         // Determine which device to use based on register address
-        let device = if reg_addr >= 0x0340 && reg_addr <= 0x0342 {
+        let device = if (0x0340..=0x0342).contains(&reg_addr) {
             // I2C registers
             self.i2c_device.as_ref().ok_or(Error::DeviceNotFound)?
         } else {

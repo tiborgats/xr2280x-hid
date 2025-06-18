@@ -13,13 +13,6 @@ fn get_hid_api() -> HidApi {
     HidApi::new().expect("Failed to initialize HID API")
 }
 
-/// Helper function to check if any XR2280x devices are available
-fn has_xr2280x_devices(hid_api: &HidApi) -> bool {
-    !Xr2280x::device_enumerate(hid_api)
-        .unwrap_or_default()
-        .is_empty()
-}
-
 #[test]
 fn test_enumerate_devices_no_panic() {
     // This test should never panic, even without hardware
