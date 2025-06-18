@@ -5,15 +5,58 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.4] - 2025-01-27
+
+### Added
+- **Device Grouping**: Revolutionary new approach grouping logical USB interfaces by physical device
+  - `XrDeviceInfo` - Groups logical USB interfaces by device (serial number)
+  - `device_find_all()` - Enumerate devices instead of logical interfaces
+  - `device_find_first()` - Find first device with unified interface access
+  - `device_find()` - Iterator over devices with deterministic ordering
+  - `Xr2280x::device_enumerate()` - Device enumeration method
+  - `Xr2280x::device_open()` - Open complete device with both I2C and EDGE interfaces
+  - `Xr2280x::device_open_first()` - Open first device found
+- **Unified Device Access**: Single device handle provides access to both I2C and GPIO/PWM functionality
+  - Eliminates need to manage separate logical device connections
+  - Automatic interface routing based on register addresses
+  - Device-centric view matching physical device reality
+- **Deterministic Device Ordering**: Devices ordered by serial number for consistent enumeration
+- **Clean, Simplified API**: Consistent naming convention with `device_*` prefix
+- **New Examples**:
+  - `enumerate_hardware.rs` - Demonstrates device enumeration
+  - `hardware_device_usage.rs` - Complete usage example with unified device access
+
+### Changed
+- **BREAKING**: Complete API redesign with consistent `device_*` naming convention
+- **BREAKING**: New structure `XrDeviceInfo` replaces logical device discovery
+- **BREAKING**: Previous `XrDeviceInfo` renamed to `XrDeviceDetails`
+- **BREAKING**: `Xr2280x` internal structure now holds separate `i2c_device` and `edge_device` handles
+- **BREAKING**: Register access methods automatically route to appropriate interface device
+- **BREAKING**: Device enumeration now groups logical interfaces by device
+- **BREAKING**: `get_device_info()` now returns `XrDeviceDetails` directly (not wrapped in `Result`)
+- Updated all documentation examples to use new device API
+- Enhanced error messages and streamlined public API surface
+- Simplified terminology: "device" instead of "hardware device"
+
+### Removed
+- All previous device discovery and opening functions (replaced by `device_*` API)
+- Internal logical device discovery structures from public API
+
+### Fixed
+- Device enumeration now properly represents physical devices rather than logical USB interfaces
+- Eliminated confusion between multiple logical devices from single device
+- Consistent device ordering across different enumeration methods
+- Consistent naming convention throughout the codebase
+
 ## [0.9.3] - 2025-06-16
 
 ### Added
 - **Multi-Device Selection Support**: Comprehensive device selection when multiple XR2280x devices are connected
-  - `Xr2280x::enumerate_devices()` - Get list of all available XR2280x devices
+  - `Xr2280x::enumerate_devices()` - Get list of all available XR2280x devices *(removed in v0.10.0, replaced by `enumerate_hardware_devices()`)*
   - `Xr2280x::open_by_serial()` - Open device by serial number
   - `Xr2280x::open_by_index()` - Open device by enumeration index (0-based)
   - `Xr2280x::open_by_path()` - Open device by platform-specific path
-  - `Xr2280x::from_hid_device()` - Create instance from existing HidDevice
+  - `Xr2280x::from_hid_device()` - Create instance from existing HidDevice *(removed in v0.10.0, replaced by `from_hid_devices()`)*
 - **Enhanced Error Handling**: Specific error types for multi-device selection failures
   - `Error::DeviceNotFoundBySerial` - Serial number not found
   - `Error::DeviceNotFoundByIndex` - Index out of range
@@ -24,7 +67,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **New Example**: `multi_device_selection.rs` demonstrating all selection methods
 
 ### Changed
-- Refactored device opening logic to use unified `from_hid_device()` method internally
+- Refactored device opening logic to use unified `from_hid_device()` method internally *(later replaced by `from_hid_devices()` in v0.10.0)*
 - Updated documentation with comprehensive multi-device selection examples
 - Enhanced README with dedicated multi-device selection section
 
@@ -112,7 +155,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Minor API improvements:
   - `gpio_assign_to_edge()` no longer takes a boolean parameter (always assigns to EDGE)
   - `pwm_control()` parameter order changed to `(channel, enable, command)` for better clarity
-  - `find_all()` now returns `Result<Vec<_>>` instead of an iterator for better error handling
+  - `find_all()` now returns `Result<Vec<_>>` instead of an iterator for better error handling *(removed in v0.10.0, replaced by `find_all_hardware()`)*
 
 ### Added
 - Comprehensive tests for I2C address format verification

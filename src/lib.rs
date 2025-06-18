@@ -31,14 +31,14 @@
 //! ## Quick Start
 //!
 //! ```no_run
-//! use xr2280x_hid::{Xr2280x, find_first};
+//! use xr2280x_hid::{Xr2280x, device_find_first};
 //! use hidapi::HidApi;
 //!
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! // Initialize HID API and find the first XR2280x device
 //! let hid_api = HidApi::new()?;
-//! let device_info = find_first(&hid_api)?;
-//! let device = Xr2280x::open(&hid_api, &device_info)?;
+//! let device_info = device_find_first(&hid_api)?;
+//! let device = Xr2280x::device_open(&hid_api, &device_info)?;
 //!
 //! // Scan I2C bus for connected devices
 //! device.i2c_set_speed_khz(100)?;
@@ -52,7 +52,7 @@
 //!
 //! When multiple XR2280x devices are connected, you can select specific devices using various methods:
 //!
-//! ### Enumerate All Devices
+//! ### Enumerate All Hardware Devices
 //!
 //! ```no_run
 //! use xr2280x_hid::Xr2280x;
@@ -62,14 +62,14 @@
 //! let hid_api = HidApi::new()?;
 //!
 //! // Get list of all XR2280x devices
-//! let devices = Xr2280x::enumerate_devices(&hid_api)?;
+//! let devices = Xr2280x::device_enumerate(&hid_api)?;
 //! println!("Found {} XR2280x devices:", devices.len());
 //!
 //! for (i, info) in devices.iter().enumerate() {
 //!     println!("  [{}] Serial: {}, Product: {}",
 //!         i,
-//!         info.serial_number().unwrap_or("N/A"),
-//!         info.product_string().unwrap_or("Unknown")
+//!         info.serial_number.as_deref().unwrap_or("N/A"),
+//!         info.product_string.as_deref().unwrap_or("Unknown")
 //!     );
 //! }
 //! # Ok(())
@@ -131,12 +131,12 @@
 //! ### I2C Communication
 //!
 //! ```no_run
-//! use xr2280x_hid::{Xr2280x, find_first};
+//! use xr2280x_hid::{Xr2280x, device_find_first};
 //! use hidapi::HidApi;
 //!
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! let hid_api = HidApi::new()?;
-//! let device = Xr2280x::open_first(&hid_api)?;
+//! let device = Xr2280x::device_open_first(&hid_api)?;
 //!
 //! // Configure I2C bus speed (supports 100kHz, 400kHz, etc.)
 //! device.i2c_set_speed_khz(400)?;
@@ -161,12 +161,12 @@
 //! ### Fast I2C Device Discovery
 //!
 //! ```no_run
-//! use xr2280x_hid::{Xr2280x, find_first};
+//! use xr2280x_hid::{Xr2280x, device_find_first};
 //! use hidapi::HidApi;
 //!
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! let hid_api = HidApi::new()?;
-//! let device = Xr2280x::open_first(&hid_api)?;
+//! let device = Xr2280x::device_open_first(&hid_api)?;
 //!
 //! device.i2c_set_speed_khz(100)?;
 //!
@@ -188,14 +188,14 @@
 //! ### GPIO Control
 //!
 //! ```no_run
-//! use xr2280x_hid::{Xr2280x, GpioPin, GpioDirection, GpioLevel, GpioPull, find_first};
+//! use xr2280x_hid::{Xr2280x, GpioPin, GpioDirection, GpioLevel, GpioPull, device_find_first};
 //! use hidapi::HidApi;
 //! use std::thread::sleep;
 //! use std::time::Duration;
 //!
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! let hid_api = HidApi::new()?;
-//! let device = Xr2280x::open_first(&hid_api)?;
+//! let device = Xr2280x::device_open_first(&hid_api)?;
 //!
 //! // Configure GPIO pin 0 as output (LED)
 //! let led_pin = GpioPin::new(0)?;
@@ -226,12 +226,12 @@
 //! ### Bulk GPIO Operations
 //!
 //! ```no_run
-//! use xr2280x_hid::{Xr2280x, GpioGroup, GpioDirection, GpioPin, find_first};
+//! use xr2280x_hid::{Xr2280x, GpioGroup, GpioDirection, GpioPin, device_find_first};
 //! use hidapi::HidApi;
 //!
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! let hid_api = HidApi::new()?;
-//! let device = Xr2280x::open_first(&hid_api)?;
+//! let device = Xr2280x::device_open_first(&hid_api)?;
 //!
 //! // Configure pins 0-7 as outputs (LED array)
 //! let led_mask = 0x00FF; // Pins 0-7
@@ -258,14 +258,14 @@
 //! ### PWM Generation
 //!
 //! ```no_run
-//! use xr2280x_hid::{Xr2280x, PwmChannel, PwmCommand, GpioPin, find_first};
+//! use xr2280x_hid::{Xr2280x, PwmChannel, PwmCommand, GpioPin, device_find_first};
 //! use hidapi::HidApi;
 //! use std::thread::sleep;
 //! use std::time::Duration;
 //!
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! let hid_api = HidApi::new()?;
-//! let device = Xr2280x::open_first(&hid_api)?;
+//! let device = Xr2280x::device_open_first(&hid_api)?;
 //!
 //! // Configure PWM0 on GPIO pin 2 (servo control)
 //! let servo_pin = GpioPin::new(2)?;
@@ -295,12 +295,12 @@
 //! ### LED Brightness Control
 //!
 //! ```no_run
-//! use xr2280x_hid::{Xr2280x, PwmChannel, PwmCommand, GpioPin, find_first};
+//! use xr2280x_hid::{Xr2280x, PwmChannel, PwmCommand, GpioPin, device_find_first};
 //! use hidapi::HidApi;
 //!
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! let hid_api = HidApi::new()?;
-//! let device = Xr2280x::open_first(&hid_api)?;
+//! let device = Xr2280x::device_open_first(&hid_api)?;
 //!
 //! // Configure PWM1 on GPIO pin 5 for LED brightness
 //! let led_pin = GpioPin::new(5)?;
@@ -354,23 +354,25 @@
 //!
 //! ## Architecture
 //!
-//! The XR2280x chips expose multiple USB HID interfaces:
+//! The XR2280x chips expose multiple USB HID interfaces as separate logical devices:
 //! - **I2C Interface** (PID 0x1100): I2C master controller with configurable speeds
 //! - **EDGE Interface** (PID 0x1200): GPIO, PWM, and interrupt controller
 //!
-//! This driver automatically handles both interfaces and presents a unified API.
+//! This driver groups these logical interfaces by hardware device (using serial number)
+//! and automatically opens both interfaces to present a unified API for complete device access.
+//! The device approach eliminates the need to manage separate logical device connections.
 //!
 //! ## Error Handling
 //!
 //! All operations return `Result<T, Error>` with detailed error information:
 //!
 //! ```no_run
-//! use xr2280x_hid::{Xr2280x, Error, find_first};
+//! use xr2280x_hid::{Xr2280x, Error, device_find_first};
 //! use hidapi::HidApi;
 //!
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! let hid_api = HidApi::new()?;
-//! let device = Xr2280x::open_first(&hid_api)?;
+//! let device = Xr2280x::device_open_first(&hid_api)?;
 //!
 //! match device.i2c_write_7bit(0x50, &[0x00, 0x01]) {
 //!     Ok(()) => println!("Write successful"),
@@ -386,9 +388,9 @@
 //! # }
 //! ```
 //!
-//! ### Multi-Device Selection Errors
+//! ### Hardware Device Selection Errors
 //!
-//! The multi-device selection methods provide specific error types for better error handling:
+//! The hardware device selection methods provide specific error types for better error handling:
 //!
 //! ```no_run
 //! use xr2280x_hid::{Xr2280x, Error};
@@ -397,14 +399,14 @@
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! let hid_api = HidApi::new()?;
 //!
-//! // Handle specific multi-device selection errors
+//! // Handle specific hardware device selection errors
 //! match Xr2280x::open_by_serial(&hid_api, "NONEXISTENT") {
-//!     Ok(device) => println!("Device opened successfully"),
+//!     Ok(device) => println!("Hardware device opened successfully"),
 //!     Err(Error::DeviceNotFoundBySerial { serial, message }) => {
-//!         println!("No device found with serial '{}': {}", serial, message);
+//!         println!("No hardware device found with serial '{}': {}", serial, message);
 //!     },
 //!     Err(Error::DeviceNotFoundByIndex { index, message }) => {
-//!         println!("No device found at index {}: {}", index, message);
+//!         println!("No hardware device found at index {}: {}", index, message);
 //!     },
 //!     Err(Error::MultipleDevicesFound { count, message }) => {
 //!         println!("Found {} devices when expecting one: {}", count, message);
@@ -483,7 +485,8 @@ pub mod pwm;
 
 // Re-export main types and functions
 pub use device::{
-    find_all, find_devices, find_first, Capabilities, Xr2280x, XrDeviceDiscoveryInfo, XrDeviceInfo,
+    device_find, device_find_all, device_find_first, Capabilities, Xr2280x, XrDeviceDetails,
+    XrDeviceInfo,
 };
 pub use error::{Error, Result};
 pub use gpio::{GpioDirection, GpioGroup, GpioLevel, GpioPin, GpioPull};

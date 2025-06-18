@@ -6,7 +6,7 @@ fn main() -> Result<()> {
     env_logger::init();
     let hid_api = HidApi::new()?;
     println!("Opening first XR2280x device...");
-    let device = match xr2280x_hid::Xr2280x::open_first(&hid_api) {
+    let device = match xr2280x_hid::Xr2280x::device_open_first(&hid_api) {
         Ok(dev) => dev,
         Err(e) => {
             eprintln!("Error opening device: {}", e);

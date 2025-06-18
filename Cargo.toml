@@ -1,6 +1,6 @@
 [package]
 name = "xr2280x-hid"
-version = "0.9.3"
+version = "0.9.4"
 edition = "2021"
 authors = ["Tibor Gats <tibor.gats@gmail.com>"]
 description = "Control XR2280x I2C and GPIO/PWM/Interrupts over USB HID"

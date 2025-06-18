@@ -6,7 +6,7 @@
 
 use hidapi::HidApi;
 use std::io::{self, Write};
-use xr2280x_hid::{Error, Result, Xr2280x};
+use xr2280x_hid::{Error, Result, Xr2280x, XrDeviceInfo};
 
 fn main() -> Result<()> {
     env_logger::init();
@@ -14,9 +14,9 @@ fn main() -> Result<()> {
 
     println!("=== XR2280x Multi-Device Selection Demo ===\n");
 
-    // Method 1: Enumerate all devices using the new enumerate_devices method
+    // Method 1: Enumerate all devices using the device_enumerate method
     println!("1. Enumerating all XR2280x devices...");
-    let device_infos = Xr2280x::enumerate_devices(&hid_api)?;
+    let device_infos = Xr2280x::device_enumerate(&hid_api)?;
 
     if device_infos.is_empty() {
         println!("No XR2280x devices found. Please connect a device and try again.");
@@ -26,17 +26,18 @@ fn main() -> Result<()> {
     println!("Found {} XR2280x device(s):", device_infos.len());
     for (i, info) in device_infos.iter().enumerate() {
         println!(
-            "  [{}] VID: 0x{:04X}, PID: 0x{:04X}, Path: {:?}",
+            "  [{}] VID: 0x{:04X}, Serial: {}, Product: {}",
             i,
-            info.vendor_id(),
-            info.product_id(),
-            info.path()
+            info.vid,
+            info.serial_number.as_deref().unwrap_or("N/A"),
+            info.product_string.as_deref().unwrap_or("Unknown")
         );
-        println!(
-            "      Serial: '{}', Product: '{}'",
-            info.serial_number().unwrap_or("N/A"),
-            info.product_string().unwrap_or("N/A")
-        );
+        if let Some(i2c) = &info.i2c_interface {
+            println!("       I2C Path: {:?}", i2c.path);
+        }
+        if let Some(edge) = &info.edge_interface {
+            println!("       EDGE Path: {:?}", edge.path);
+        }
     }
 
     // Method 2: Open by index
@@ -44,7 +45,7 @@ fn main() -> Result<()> {
     match Xr2280x::open_by_index(&hid_api, 0) {
         Ok(device) => {
             println!("✓ Successfully opened device at index 0");
-            let info = device.get_device_info()?;
+            let info = device.get_device_info();
             println!("  Device info: {:?}", info);
             println!("  Capabilities: {:?}", device.get_capabilities());
         }
@@ -54,12 +55,12 @@ fn main() -> Result<()> {
     }
 
     // Method 3: Open by serial number (if available)
-    if let Some(serial) = device_infos[0].serial_number() {
+    if let Some(serial) = &device_infos[0].serial_number {
         println!("\n3. Opening device by serial number '{}'...", serial);
         match Xr2280x::open_by_serial(&hid_api, serial) {
             Ok(device) => {
                 println!("✓ Successfully opened device by serial number");
-                let info = device.get_device_info()?;
+                let info = device.get_device_info();
                 println!("  Device info: {:?}", info);
             }
             Err(e) => {
@@ -70,18 +71,22 @@ fn main() -> Result<()> {
         println!("\n3. Skipping serial number test (device has no serial number)");
     }
 
-    // Method 4: Open by path
+    // Method 4: Open by path (using I2C interface if available)
     println!("\n4. Opening device by path...");
-    let device_path = device_infos[0].path();
-    match Xr2280x::open_by_path(&hid_api, device_path) {
-        Ok(device) => {
-            println!("✓ Successfully opened device by path");
-            let info = device.get_device_info()?;
-            println!("  Device info: {:?}", info);
+    if let Some(i2c_interface) = &device_infos[0].i2c_interface {
+        let device_path = &i2c_interface.path;
+        match Xr2280x::open_by_path(&hid_api, device_path) {
+            Ok(device) => {
+                println!("✓ Successfully opened device by I2C path");
+                let info = device.get_device_info();
+                println!("  Device info: {:?}", info);
+            }
+            Err(e) => {
+                println!("✗ Failed to open device by path: {}", e);
+            }
         }
-        Err(e) => {
-            println!("✗ Failed to open device by path: {}", e);
-        }
+    } else {
+        println!("No I2C interface available for path opening test");
     }
 
     // Method 5: Interactive device selection
@@ -90,7 +95,7 @@ fn main() -> Result<()> {
         let selected_device = interactive_device_selection(&hid_api, &device_infos)?;
         if let Some(device) = selected_device {
             println!("✓ Successfully opened selected device");
-            let info = device.get_device_info()?;
+            let info = device.get_device_info();
             println!("  Device info: {:?}", info);
 
             // Demonstrate a simple operation
@@ -128,21 +133,23 @@ fn main() -> Result<()> {
 /// Interactive device selection when multiple devices are available
 fn interactive_device_selection(
     hid_api: &HidApi,
-    device_infos: &[&hidapi::DeviceInfo],
+    device_infos: &[XrDeviceInfo],
 ) -> Result<Option<Xr2280x>> {
     loop {
         println!("\nAvailable devices:");
         for (i, info) in device_infos.iter().enumerate() {
+            let interfaces = match (&info.i2c_interface, &info.edge_interface) {
+                (Some(_), Some(_)) => "I2C+EDGE",
+                (Some(_), None) => "I2C",
+                (None, Some(_)) => "EDGE",
+                (None, None) => "None",
+            };
             println!(
-                "  [{}] {} (Serial: {}, Interface: {})",
+                "  [{}] {} (Serial: {}, Interfaces: {})",
                 i,
-                info.product_string().unwrap_or("XR2280x"),
-                info.serial_number().unwrap_or("N/A"),
-                if info.product_id() == xr2280x_hid::XR2280X_I2C_PID {
-                    "I2C"
-                } else {
-                    "EDGE"
-                }
+                info.product_string.as_deref().unwrap_or("XR2280x"),
+                info.serial_number.as_deref().unwrap_or("N/A"),
+                interfaces
             );
         }
 
@@ -162,7 +169,7 @@ fn interactive_device_selection(
 
         match input.parse::<usize>() {
             Ok(index) if index < device_infos.len() => {
-                match Xr2280x::open_by_index(hid_api, index) {
+                match Xr2280x::device_open(hid_api, &device_infos[index]) {
                     Ok(device) => return Ok(Some(device)),
                     Err(e) => {
                         println!("Error opening device at index {}: {}", index, e);
@@ -184,7 +191,7 @@ fn interactive_device_selection(
 fn demonstrate_device_operation(device: &Xr2280x) -> Result<()> {
     println!("\nDemonstrating device operation...");
 
-    let info = device.get_device_info()?;
+    let info = device.get_device_info();
 
     // Check if this is an I2C interface
     if info.product_id == xr2280x_hid::XR2280X_I2C_PID {

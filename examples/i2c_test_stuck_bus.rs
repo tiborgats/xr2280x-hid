@@ -4,7 +4,7 @@
 //! 29+ second hangs when unpowered devices hold I2C lines low.
 //!
 //! ERROR MEANINGS:
-//! - I2cTimeout: Bus stuck (unpowered device) or very slow device  
+//! - I2cTimeout: Bus stuck (unpowered device) or very slow device
 //! - I2cArbitrationLost: Multiple I2C masters or electrical interference
 //! - I2cNack: No device at address (normal during scanning)
 //! - I2cRequestError: Invalid parameters sent to firmware
@@ -20,7 +20,7 @@ fn main() -> Result<()> {
     println!("================================\n");
 
     let hid_api = HidApi::new().map_err(Error::Hid)?;
-    let device = Xr2280x::open_first(&hid_api)?;
+    let device = Xr2280x::device_open_first(&hid_api)?;
 
     // Test 1: Normal operation with responsive firmware
     test_normal_operation(&device)?;

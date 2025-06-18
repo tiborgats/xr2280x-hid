@@ -10,7 +10,7 @@ fn main() -> Result<()> {
     println!("===================================");
 
     println!("Opening first XR2280x device...");
-    let device = match xr2280x_hid::Xr2280x::open_first(&hid_api) {
+    let device = match xr2280x_hid::Xr2280x::device_open_first(&hid_api) {
         Ok(dev) => dev,
         Err(e) => {
             eprintln!("Error opening device: {}", e);
@@ -21,7 +21,7 @@ fn main() -> Result<()> {
         }
     };
 
-    let device_info = device.get_device_info()?;
+    let device_info = device.get_device_info();
     println!("Device opened successfully!");
     println!(
         "  Product: {:?}",

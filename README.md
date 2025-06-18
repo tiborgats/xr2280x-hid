@@ -7,14 +7,24 @@
 
 Control MaxLinear/Exar XR22800, XR22801, XR22802, and XR22804 I²C, GPIO, PWM, and Interrupt configuration over USB HID using Rust.
 
-This crate provides a high-level API over the raw HID reports required to interact with the chip's I²C master and EDGE (Enhanced Dedicated GPIO Entity) controller. It uses the cross-platform [`hidapi`](https://crates.io/crates/hidapi) crate.
+This crate provides a **hardware-centric API** that groups USB logical interfaces by physical device, offering unified access to both I²C and GPIO/PWM functionality through a single device handle. Unlike other approaches that treat each USB interface separately, this crate presents a complete view of the hardware device matching physical reality.
+
+Key advantages:
+- **Unified Device Access**: Single handle for both I²C and GPIO/PWM (no separate logical device management)
+- **Hardware Device Grouping**: Logical USB interfaces grouped by serial number into hardware devices  
+- **Deterministic Ordering**: Consistent device enumeration ordered by serial number
+- **Simplified Multi-Device Support**: Easy selection when multiple XR2280x devices are connected
+
+It uses the cross-platform [`hidapi`](https://crates.io/crates/hidapi) crate and provides a high-level API over the raw HID reports.
 
 ## Features
 
-*   Device discovery (`find_all`, `find_first`, `find_devices`).
-*   Flexible device opening (`open`, `open_first`, `open_by_vid_pid`, `open_by_path`).
-*   Querying device info from handle (`get_device_info`).
-*   Querying detected capabilities (`get_capabilities`).
+*   **Device Grouping**: Groups logical USB interfaces by physical device
+    *   Device discovery (`device_find_all`, `device_find_first`, `device_find`)
+    *   Unified device opening (`device_open`, `device_open_first`)
+    *   Multi-device selection (`open_by_serial`, `open_by_index`)
+
+*   Device information and capabilities (`get_device_info`, `get_capabilities`).
 *   I²C communication:
     *   Speed setting (`i2c_set_speed_khz`).
     *   7-bit and 10-bit addressing support.
@@ -82,7 +92,7 @@ fn main() -> Result<()> {
     // --- Option 1: Open the first default device found ---
     // Convenient but potentially ambiguous if multiple devices are present.
     println!("Opening first default XR2280x device...");
-    let device = match xr2280x_hid::Xr2280x::open_first(&hid_api) {
+    let device = match xr2280x_hid::Xr2280x::device_open_first(&hid_api) {
         Ok(dev) => dev,
         Err(e) => {
             eprintln!("Error opening device: {}", e);
@@ -130,15 +140,14 @@ use hidapi::HidApi;
 let hid_api = HidApi::new()?;
 
 // Enumerate all XR2280x devices
-let devices = Xr2280x::enumerate_devices(&hid_api)?;
+let devices = Xr2280x::device_enumerate(&hid_api)?;
 println!("Found {} XR2280x devices:", devices.len());
 
 for (i, info) in devices.iter().enumerate() {
-    println!("  [{}] Serial: {}, Product: {}, Path: {:?}",
+    println!("  [{}] Serial: {}, Product: {}",
         i,
-        info.serial_number().unwrap_or("N/A"),
-        info.product_string().unwrap_or("Unknown"),
-        info.path()
+        info.serial_number.as_deref().unwrap_or("N/A"),
+        info.product_string.as_deref().unwrap_or("Unknown")
     );
 }
 ```
@@ -172,9 +181,8 @@ let device = Xr2280x::open_by_path(&hid_api, &path)?;
 #### 4. Open from Existing HidDevice
 
 ```rust
-// If you already have an opened HidDevice
-let hid_device = hid_api.open_path(&device_path)?;
-let xr_device = Xr2280x::from_hid_device(hid_device)?;
+// If you need to open by path, use open_by_path directly
+let xr_device = Xr2280x::open_by_path(&hid_api, &device_path)?;
 ```
 
 ### Error Handling for Multi-Device Selection
@@ -204,15 +212,15 @@ match Xr2280x::open_by_serial(&hid_api, "NONEXISTENT") {
 For applications that need user selection, you can combine enumeration with user input:
 
 ```rust
-let devices = Xr2280x::enumerate_devices(&hid_api)?;
+let devices = Xr2280x::device_enumerate(&hid_api)?;
 
 if devices.len() > 1 {
     // Display devices to user
     for (i, info) in devices.iter().enumerate() {
         println!("[{}] {} (Serial: {})", 
             i, 
-            info.product_string().unwrap_or("XR2280x"),
-            info.serial_number().unwrap_or("N/A")
+            info.product_string.as_deref().unwrap_or("XR2280x"),
+            info.serial_number.as_deref().unwrap_or("N/A")
         );
     }
     
@@ -220,7 +228,7 @@ if devices.len() > 1 {
     let index = get_user_selection()?; // Your input function
     let device = Xr2280x::open_by_index(&hid_api, index)?;
 } else {
-    let device = Xr2280x::open_first(&hid_api)?;
+    let device = Xr2280x::device_open_first(&hid_api)?;
 }
 ```
 
@@ -228,11 +236,11 @@ if devices.len() > 1 {
 
 For compatibility with existing code:
 
-- `find_all(&hid_api)` - Returns `Vec<XrDeviceDiscoveryInfo>` for all devices
-- `find_first(&hid_api)` - Returns the first device's discovery info
-- `open(&hid_api, &device_info)` - Opens using discovery info
+- `device_find_all(&hid_api)` - Returns `Vec<XrDeviceInfo>` for all devices
+- `device_find_first(&hid_api)` - Returns the first device's info
+- `device_open(&hid_api, &device_info)` - Opens using device info
 
-See the `examples/list_and_select.rs` and `examples/multi_device_selection.rs` examples for complete demonstrations.
+See the `examples/enumerate_hardware.rs` and `examples/multi_device_selection.rs` examples for complete demonstrations.
 
 ## Hardware Setup Notes
 

@@ -111,7 +111,8 @@ impl Xr2280x {
         let mut buffer = vec![0u8; 64]; // Adjust size as needed
 
         debug!("Reading GPIO interrupt report with timeout {}ms", timeout);
-        match self.device.read_timeout(&mut buffer, timeout) {
+        let edge_device = self.edge_device.as_ref().ok_or(Error::DeviceNotFound)?;
+        match edge_device.read_timeout(&mut buffer, timeout) {
             Ok(size) => {
                 trace!("Received interrupt report: {:02X?}", &buffer[..size]);
                 Ok(GpioInterruptReport {

@@ -13,7 +13,7 @@ fn main() -> Result<()> {
         xr2280x_hid::XR2280X_I2C_PID,
         xr2280x_hid::XR2280X_EDGE_PID
     );
-    let devices = xr2280x_hid::find_all(&hid_api)?;
+    let devices = xr2280x_hid::device_find_all(&hid_api)?;
 
     if devices.is_empty() {
         println!("No devices found.");
@@ -23,15 +23,24 @@ fn main() -> Result<()> {
     println!("Found {} device(s):", devices.len());
     for (i, info) in devices.iter().enumerate() {
         println!(
-            "  {}: VID=0x{:04X}, PID=0x{:04X}, Interface={}, Path={:?}, Serial='{}', Product='{}'",
+            "  {}: VID=0x{:04X}, Serial='{}', Product='{}'",
             i,
             info.vid,
-            info.pid,
-            info.interface_number,
-            info.path,
             info.serial_number.as_deref().unwrap_or("N/A"),
-            info.product_string.as_deref().unwrap_or("N/A"),
+            info.product_string.as_deref().unwrap_or("Unknown")
         );
+        if let Some(i2c) = &info.i2c_interface {
+            println!(
+                "      I2C Interface: PID=0x{:04X}, Path={:?}",
+                i2c.pid, i2c.path
+            );
+        }
+        if let Some(edge) = &info.edge_interface {
+            println!(
+                "      EDGE Interface: PID=0x{:04X}, Path={:?}",
+                edge.pid, edge.path
+            );
+        }
     }
 
     // --- Select Device ---
@@ -63,8 +72,11 @@ fn main() -> Result<()> {
     };
 
     // --- Open Selected Device ---
-    println!("Opening device: {:?}", selected_info.path);
-    let device = match xr2280x_hid::Xr2280x::open(&hid_api, selected_info) {
+    println!(
+        "Opening device with serial: {:?}",
+        selected_info.serial_number.as_deref().unwrap_or("N/A")
+    );
+    let device = match xr2280x_hid::Xr2280x::device_open(&hid_api, selected_info) {
         Ok(dev) => dev,
         Err(e) => {
             eprintln!("Error opening selected device: {}", e);
@@ -73,13 +85,13 @@ fn main() -> Result<()> {
     };
 
     println!("Successfully opened device!");
-    let opened_info = device.get_device_info()?;
+    let opened_info = device.get_device_info();
     println!("Opened Info: {:?}", opened_info);
     println!("Capabilities: {:?}", device.get_capabilities());
 
     // --- Now you can interact with the 'device' handle ---
-    // Example: Read GPIO 0 state if it's an EDGE device
-    if selected_info.pid == xr2280x_hid::XR2280X_EDGE_PID {
+    // Example: Read GPIO 0 state if device has EDGE interface
+    if selected_info.edge_interface.is_some() {
         let pin0 = GpioPin::new(0)?; // Use typed pin
         match device.gpio_read(pin0) {
             Ok(level) => println!("GPIO Pin 0 current level: {:?}", level),

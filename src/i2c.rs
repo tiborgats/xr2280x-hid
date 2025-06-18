@@ -23,7 +23,7 @@ use std::time::Instant;
 ///
 /// Each layer can introduce delays due to:
 /// - USB packet transmission and scheduling
-/// - Firmware processing time  
+/// - Firmware processing time
 /// - I2C clock stretching by slow devices
 /// - USB bus congestion or interference
 /// - **Firmware blocking** when I2C bus is stuck (critical issue)
@@ -46,7 +46,7 @@ use std::time::Instant;
 /// # use hidapi::HidApi;
 /// # fn main() -> Result<()> {
 /// # let hid_api = HidApi::new()?;
-/// # let device = Xr2280x::open_first(&hid_api)?;
+/// # let device = Xr2280x::device_open_first(&hid_api)?;
 /// # let mut buffer = [0u8; 2];
 /// # let data = [0x42];
 /// // Fast scanning for responsive devices
@@ -201,7 +201,7 @@ impl Xr2280x {
     /// # use hidapi::HidApi;
     /// # fn main() -> Result<()> {
     /// # let hid_api = HidApi::new()?;
-    /// # let device = Xr2280x::open_first(&hid_api)?;
+    /// # let device = Xr2280x::device_open_first(&hid_api)?;
     /// // Write configuration to a sensor
     /// device.i2c_write_7bit(0x48, &[0x01, 0x60])?; // Set config register
     /// # Ok(())
@@ -235,7 +235,7 @@ impl Xr2280x {
     /// Uses a [`timeouts::READ`] (100ms) timeout, optimized for sensor readings and register access.
     ///
     /// # Arguments
-    /// * `slave_addr` - 7-bit I2C address (0x00-0x7F)  
+    /// * `slave_addr` - 7-bit I2C address (0x00-0x7F)
     /// * `buffer` - Buffer to receive data (max 32 bytes)
     ///
     /// # Example
@@ -244,7 +244,7 @@ impl Xr2280x {
     /// # use hidapi::HidApi;
     /// # fn main() -> Result<()> {
     /// # let hid_api = HidApi::new()?;
-    /// # let device = Xr2280x::open_first(&hid_api)?;
+    /// # let device = Xr2280x::device_open_first(&hid_api)?;
     /// // Read temperature from sensor
     /// let mut temp_data = [0u8; 2];
     /// device.i2c_read_7bit(0x48, &mut temp_data)?;
@@ -517,7 +517,7 @@ impl Xr2280x {
     /// # use hidapi::HidApi;
     /// # fn main() -> Result<()> {
     /// # let hid_api = HidApi::new()?;
-    /// # let device = Xr2280x::open_first(&hid_api)?;
+    /// # let device = Xr2280x::device_open_first(&hid_api)?;
     /// let found_devices = device.i2c_scan(0x08, 0x77)?;
     /// for addr in found_devices {
     ///     println!("Found device at 0x{:02X}", addr);
@@ -539,7 +539,7 @@ impl Xr2280x {
     /// # use hidapi::HidApi;
     /// # fn main() -> Result<()> {
     /// # let hid_api = HidApi::new()?;
-    /// # let device = Xr2280x::open_first(&hid_api)?;
+    /// # let device = Xr2280x::device_open_first(&hid_api)?;
     /// let found_devices = device.i2c_scan_default()?;
     /// for addr in found_devices {
     ///     println!("Found device at 0x{:02X}", addr);
@@ -560,7 +560,7 @@ impl Xr2280x {
     ///
     /// The scan includes built-in protection against stuck I2C buses:
     /// - Pre-scan test using reserved address 0x00
-    /// - Monitoring for consecutive timeout patterns  
+    /// - Monitoring for consecutive timeout patterns
     /// - Extended timeout verification when stuck bus suspected
     /// - Early termination with clear error message
     ///
@@ -577,7 +577,7 @@ impl Xr2280x {
     /// # use hidapi::HidApi;
     /// # fn main() -> Result<()> {
     /// # let hid_api = HidApi::new()?;
-    /// # let device = Xr2280x::open_first(&hid_api)?;
+    /// # let device = Xr2280x::device_open_first(&hid_api)?;
     /// let found_devices = device.i2c_scan_with_progress(0x08, 0x77, |addr, found, idx, total| {
     ///     if found {
     ///         println!("Device found at 0x{:02X}", addr);
@@ -821,7 +821,8 @@ impl Xr2280x {
         trace!("I2C OUT buffer: {:02X?}", &out_buf);
 
         // Send the OUT report
-        match self.device.write(&out_buf) {
+        let i2c_device = self.i2c_device.as_ref().ok_or(Error::DeviceNotFound)?;
+        match i2c_device.write(&out_buf) {
             Ok(written) if written == out_buf.len() => {
                 trace!("Sent {} bytes to device", written);
             }
@@ -834,7 +835,7 @@ impl Xr2280x {
 
         // Always read the status response from device (even for write-only operations)
         let mut in_buf = vec![0u8; consts::i2c::IN_REPORT_READ_BUF_SIZE];
-        match self.device.read_timeout(&mut in_buf, timeout) {
+        match i2c_device.read_timeout(&mut in_buf, timeout) {
             Ok(received) => {
                 trace!(
                     "Received {} bytes from device: {:02X?}",
