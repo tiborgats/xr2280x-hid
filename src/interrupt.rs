@@ -129,21 +129,22 @@ impl Xr2280x {
         report: &GpioInterruptReport,
     ) -> Result<ParsedGpioInterruptReport> {
         // Speculative parsing based on common patterns
-        if report.raw_data.len() < 4 {
+        if report.raw_data.len() < 5 {
             return Err(Error::InterruptParseError(
                 "Interrupt report too small".to_string(),
             ));
         }
 
         // Assume first 4 bytes are the current GPIO states (2 bytes per group)
-        let current_state_group0 = u16::from_le_bytes([report.raw_data[0], report.raw_data[1]]);
-        let current_state_group1 = u16::from_le_bytes([report.raw_data[2], report.raw_data[3]]);
+        // Note: raw_data[0] is Report ID added by hidapi, actual data starts at [1]
+        let current_state_group0 = u16::from_le_bytes([report.raw_data[1], report.raw_data[2]]);
+        let current_state_group1 = u16::from_le_bytes([report.raw_data[3], report.raw_data[4]]);
 
         // If there's more data, it might be trigger masks
-        let (trigger_mask_group0, trigger_mask_group1) = if report.raw_data.len() >= 8 {
+        let (trigger_mask_group0, trigger_mask_group1) = if report.raw_data.len() >= 9 {
             (
-                u16::from_le_bytes([report.raw_data[4], report.raw_data[5]]),
-                u16::from_le_bytes([report.raw_data[6], report.raw_data[7]]),
+                u16::from_le_bytes([report.raw_data[5], report.raw_data[6]]),
+                u16::from_le_bytes([report.raw_data[7], report.raw_data[8]]),
             )
         } else {
             (0, 0) // No trigger info available

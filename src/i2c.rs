@@ -842,12 +842,12 @@ impl Xr2280x {
             &in_buf[..received]
         );
 
-        if received < 4 {
+        if received < 5 {
             return Err(Error::InvalidReport(received));
         }
 
         // Check status flags
-        let status_flags = in_buf[0];
+        let status_flags = in_buf[1];
         if status_flags & consts::i2c::in_flags::REQUEST_ERROR != 0 {
             return Err(Error::I2cRequestError {
                 address: slave_addr,
@@ -878,7 +878,7 @@ impl Xr2280x {
 
         // Extract read data only if reading was requested
         if read_len > 0 {
-            let reported_read_len = in_buf[2] as usize;
+            let reported_read_len = in_buf[3] as usize;
             if reported_read_len != read_len {
                 warn!(
                     "I2C read length mismatch: expected {}, got {}",
@@ -887,10 +887,10 @@ impl Xr2280x {
             }
             let actual_read_len = reported_read_len
                 .min(read_len)
-                .min(received.saturating_sub(4));
+                .min(received.saturating_sub(5));
 
             if let Some(read_buf) = read_buffer {
-                read_buf[..actual_read_len].copy_from_slice(&in_buf[4..4 + actual_read_len]);
+                read_buf[..actual_read_len].copy_from_slice(&in_buf[5..5 + actual_read_len]);
             }
         }
 
