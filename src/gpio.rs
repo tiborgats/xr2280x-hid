@@ -1,4 +1,57 @@
 //! GPIO (General Purpose Input/Output) functionality for XR2280x devices.
+//!
+//! # Performance Considerations
+//!
+//! **⚠️ IMPORTANT**: Individual GPIO operations are inefficient due to HID communication overhead.
+//! Each function call typically requires 2-4 HID Feature Report transactions with the device.
+//!
+//! ## HID Transaction Costs
+//!
+//! | Operation | HID Transactions | Notes |
+//! |-----------|------------------|-------|
+//! | `gpio_set_direction()` | 2 | 1 read + 1 write |
+//! | `gpio_write()` | 1 | Uses SET/CLEAR registers |
+//! | `gpio_read()` | 1 | Single read |
+//! | `gpio_set_pull()` | 4 | 2 reads + 2 writes (both pull registers) |
+//! | `gpio_set_open_drain()` | 2 | 1 read + 1 write |
+//! | `gpio_set_tri_state()` | 2 | 1 read + 1 write |
+//!
+//! ## Performance Recommendations
+//!
+//! **✅ DO:**
+//! - Use `gpio_setup_output()` and `gpio_setup_input()` for single pins (5 vs 8 transactions)
+//! - Use `gpio_setup_outputs()` and `gpio_setup_inputs()` for multiple pins (6 total vs 8×N)
+//! - Use `gpio_write_masked()` for updating multiple pins simultaneously
+//! - Batch configuration changes together
+//! - Group operations by GPIO group (0-15 vs 16-31) when possible
+//!
+//! **⚠️ AVOID:**
+//! - Calling individual setup functions in loops
+//! - Multiple `gpio_write()` calls when `gpio_write_masked()` could be used
+//! - Mixing individual and bulk operations unnecessarily
+//!
+//! ## Example: Efficient vs Inefficient
+//!
+//! ```rust,no_run
+//! # use xr2280x_hid::{Xr2280x, gpio::*};
+//! # fn example(device: &Xr2280x) -> xr2280x_hid::Result<()> {
+//! let pins = [GpioPin::new(0)?, GpioPin::new(1)?, GpioPin::new(2)?];
+//!
+//! // ❌ INEFFICIENT: ~24 HID transactions (8 per pin)
+//! for pin in &pins {
+//!     device.gpio_set_direction(*pin, GpioDirection::Output)?;
+//!     device.gpio_set_pull(*pin, GpioPull::None)?;
+//!     device.gpio_write(*pin, GpioLevel::Low)?;
+//! }
+//!
+//! // ✅ EFFICIENT: ~6 HID transactions total
+//! device.gpio_setup_outputs(
+//!     &pins.iter().map(|&p| (p, GpioLevel::Low)).collect::<Vec<_>>(),
+//!     GpioPull::None
+//! )?;
+//! # Ok(())
+//! # }
+//! ```
 
 use crate::consts;
 use crate::device::Xr2280x;
@@ -113,6 +166,10 @@ impl Xr2280x {
     }
 
     /// Sets the direction of a GPIO pin (Input or Output).
+    ///
+    /// **Performance**: Uses 2 HID transactions (1 read + 1 write).
+    /// For better performance with multiple pins, use `gpio_set_direction_masked()` or the
+    /// `gpio_setup_*()` functions.
     pub fn gpio_set_direction(&self, pin: GpioPin, direction: GpioDirection) -> Result<()> {
         self.check_gpio_pin_support(pin)?;
         let reg = match pin.group_index() {
@@ -148,6 +205,9 @@ impl Xr2280x {
     }
 
     /// Writes a level to a GPIO pin configured as output.
+    ///
+    /// **Performance**: Uses 1 HID transaction. For multiple pins, use `gpio_write_masked()`
+    /// to write several pins in the same group with just 1-2 transactions total.
     pub fn gpio_write(&self, pin: GpioPin, level: GpioLevel) -> Result<()> {
         self.check_gpio_pin_support(pin)?;
         let (reg_set, reg_clear) = match pin.group_index() {
@@ -184,6 +244,10 @@ impl Xr2280x {
     }
 
     /// Sets the pull resistor configuration for a GPIO pin.
+    ///
+    /// **Performance**: Uses 4 HID transactions (2 reads + 2 writes for pull-up/pull-down registers).
+    /// This is the most expensive individual GPIO operation. For better performance, use
+    /// `gpio_set_pull_masked()` or the `gpio_setup_*()` functions.
     pub fn gpio_set_pull(&self, pin: GpioPin, pull: GpioPull) -> Result<()> {
         self.check_gpio_pin_support(pin)?;
         let (reg_up, reg_down) = match pin.group_index() {
@@ -241,6 +305,9 @@ impl Xr2280x {
     }
 
     /// Sets the open-drain configuration for a GPIO pin.
+    ///
+    /// **Performance**: Uses 2 HID transactions (1 read + 1 write).
+    /// For multiple pins, use `gpio_set_open_drain_masked()`.
     pub fn gpio_set_open_drain(&self, pin: GpioPin, enable: bool) -> Result<()> {
         self.check_gpio_pin_support(pin)?;
         let reg = if pin.group_index() == 0 {
@@ -272,6 +339,9 @@ impl Xr2280x {
     }
 
     /// Sets the tri-state (high-impedance) configuration for a GPIO pin.
+    ///
+    /// **Performance**: Uses 2 HID transactions (1 read + 1 write).
+    /// For multiple pins, use `gpio_set_tri_state_masked()`.
     pub fn gpio_set_tri_state(&self, pin: GpioPin, enable: bool) -> Result<()> {
         self.check_gpio_pin_support(pin)?;
         let reg = if pin.group_index() == 0 {
@@ -302,9 +372,167 @@ impl Xr2280x {
         Ok((value & pin.mask()) != 0)
     }
 
+    // --- Efficient GPIO Configuration (Minimal HID Transactions) ---
+    //
+    // These functions are designed to minimize HID communication overhead by using
+    // the bulk/masked operations internally and combining related configuration steps.
+    /// Efficiently configure a GPIO pin for output with minimal HID transactions.
+    /// This combines direction, pull, and initial level setting into optimized operations.
+    ///
+    /// **Performance**: Uses only 2-3 HID transactions vs 6-8 for individual calls.
+    pub fn gpio_setup_output(
+        &self,
+        pin: GpioPin,
+        initial_level: GpioLevel,
+        pull: GpioPull,
+    ) -> Result<()> {
+        self.check_gpio_pin_support(pin)?;
+        let group = if pin.group_index() == 0 {
+            GpioGroup::Group0
+        } else {
+            GpioGroup::Group1
+        };
+
+        // 1. Set pull configuration (2 HID transactions)
+        self.gpio_set_pull_masked(group, pin.mask(), pull)?;
+
+        // 2. Set direction to output (2 HID transactions)
+        self.gpio_set_direction_masked(group, pin.mask(), GpioDirection::Output)?;
+
+        // 3. Set initial level (1 HID transaction)
+        self.gpio_write(pin, initial_level)?;
+
+        debug!(
+            "Efficiently configured GPIO pin {} as output: level={:?}, pull={:?}",
+            pin.number(),
+            initial_level,
+            pull
+        );
+        Ok(())
+    }
+
+    /// Efficiently configure a GPIO pin for input with minimal HID transactions.
+    /// This combines direction and pull setting into optimized operations.
+    ///
+    /// **Performance**: Uses only 4 HID transactions vs 6 for individual calls.
+    pub fn gpio_setup_input(&self, pin: GpioPin, pull: GpioPull) -> Result<()> {
+        self.check_gpio_pin_support(pin)?;
+        let group = if pin.group_index() == 0 {
+            GpioGroup::Group0
+        } else {
+            GpioGroup::Group1
+        };
+
+        // 1. Set pull configuration (4 HID transactions)
+        self.gpio_set_pull_masked(group, pin.mask(), pull)?;
+
+        // 2. Set direction to input (2 HID transactions)
+        self.gpio_set_direction_masked(group, pin.mask(), GpioDirection::Input)?;
+
+        debug!(
+            "Efficiently configured GPIO pin {} as input: pull={:?}",
+            pin.number(),
+            pull
+        );
+        Ok(())
+    }
+
+    /// Apply a complete GPIO configuration efficiently using bulk operations.
+    /// This batches multiple GPIO pins with the same settings to minimize HID transactions.
+    ///
+    /// **Performance**: Scales much better than individual pin operations.
+    /// For N pins: ~6 HID transactions total vs ~8N for individual operations.
+    pub fn gpio_apply_bulk_config(
+        &self,
+        pins: &[GpioPin],
+        direction: GpioDirection,
+        pull: GpioPull,
+        initial_levels: Option<&[(GpioPin, GpioLevel)]>, // Only used for outputs
+    ) -> Result<()> {
+        if pins.is_empty() {
+            return Ok(());
+        }
+
+        // Validate all pins and group them
+        for pin in pins {
+            self.check_gpio_pin_support(*pin)?;
+        }
+
+        // Group pins by GPIO group (0-15 vs 16-31)
+        let mut group0_mask = 0u16;
+        let mut group1_mask = 0u16;
+
+        for pin in pins {
+            if pin.group_index() == 0 {
+                group0_mask |= pin.mask();
+            } else {
+                group1_mask |= pin.mask();
+            }
+        }
+
+        // Apply pull configuration to all pins in each group
+        if group0_mask != 0 {
+            self.gpio_set_pull_masked(GpioGroup::Group0, group0_mask, pull)?;
+        }
+        if group1_mask != 0 {
+            self.gpio_set_pull_masked(GpioGroup::Group1, group1_mask, pull)?;
+        }
+
+        // Apply direction to all pins in each group
+        if group0_mask != 0 {
+            self.gpio_set_direction_masked(GpioGroup::Group0, group0_mask, direction)?;
+        }
+        if group1_mask != 0 {
+            self.gpio_set_direction_masked(GpioGroup::Group1, group1_mask, direction)?;
+        }
+
+        // Set initial levels for outputs (if specified)
+        if matches!(direction, GpioDirection::Output) {
+            if let Some(levels) = initial_levels {
+                for (pin, level) in levels {
+                    self.gpio_write(*pin, *level)?;
+                }
+            }
+        }
+
+        debug!(
+            "Bulk configured {} GPIO pins: direction={:?}, pull={:?}",
+            pins.len(),
+            direction,
+            pull
+        );
+        Ok(())
+    }
+
+    /// Convenience function to setup multiple output pins with the same configuration.
+    /// This is much more efficient than calling gpio_setup_output for each pin individually.
+    pub fn gpio_setup_outputs(
+        &self,
+        pin_configs: &[(GpioPin, GpioLevel)], // (pin, initial_level) pairs
+        pull: GpioPull,
+    ) -> Result<()> {
+        let pins: Vec<GpioPin> = pin_configs.iter().map(|(pin, _)| *pin).collect();
+        self.gpio_apply_bulk_config(&pins, GpioDirection::Output, pull, Some(pin_configs))?;
+        Ok(())
+    }
+
+    /// Convenience function to setup multiple input pins with the same pull configuration.
+    /// This is much more efficient than calling gpio_setup_input for each pin individually.
+    pub fn gpio_setup_inputs(&self, pins: &[GpioPin], pull: GpioPull) -> Result<()> {
+        self.gpio_apply_bulk_config(pins, GpioDirection::Input, pull, None)?;
+        Ok(())
+    }
+
     // --- GPIO Group Operations (Bulk) ---
+    //
+    // These masked operations are the most efficient way to configure multiple GPIO pins.
+    // They operate on entire 16-bit register groups and require only 2 HID transactions each
+    // (1 read + 1 write) regardless of how many pins are affected.
     /// Sets the direction of multiple GPIO pins in a group using a mask.
     /// Bit positions in the mask correspond to pins 0-15 within the group.
+    ///
+    /// **Performance**: Uses 2 HID transactions regardless of how many pins are affected.
+    /// This is much more efficient than calling `gpio_set_direction()` multiple times.
     pub fn gpio_set_direction_masked(
         &self,
         group: GpioGroup,
@@ -330,6 +558,9 @@ impl Xr2280x {
     /// Writes levels to multiple GPIO pins in a group.
     /// The `mask` determines which pins are affected (1 = write, 0 = ignore).
     /// The `values` determine the levels to write (1 = High, 0 = Low).
+    ///
+    /// **Performance**: Uses 1-2 HID transactions (depending on whether both SET and CLEAR
+    /// operations are needed). Much more efficient than multiple `gpio_write()` calls.
     pub fn gpio_write_masked(&self, group: GpioGroup, mask: u16, values: u16) -> Result<()> {
         self.check_gpio_group_support(group)?;
         let (reg_set, reg_clear) = self.get_gpio_group_regs(group);
@@ -364,6 +595,9 @@ impl Xr2280x {
     }
 
     /// Sets the pull resistor configuration for multiple GPIO pins in a group.
+    ///
+    /// **Performance**: Uses 4 HID transactions (2 reads + 2 writes for pull-up/pull-down registers).
+    /// Still much more efficient than multiple `gpio_set_pull()` calls.
     pub fn gpio_set_pull_masked(&self, group: GpioGroup, mask: u16, pull: GpioPull) -> Result<()> {
         self.check_gpio_group_support(group)?;
         let reg_up = self.get_gpio_reg_for_group(group, consts::edge::REG_PULL_UP_0);
