@@ -4,6 +4,7 @@ use crate::consts;
 use crate::error::{Error, Result};
 use hidapi::{HidApi, HidDevice};
 use log::{debug, trace, warn};
+use std::collections::HashMap;
 use std::ffi::CStr;
 
 /// Information about a discovered XR2280x device.
@@ -43,6 +44,41 @@ pub fn device_find_first(hid_api: &HidApi) -> Result<XrDeviceInfo> {
 
 /// Finds XR2280x devices by grouping logical interfaces by serial number.
 /// Returns an iterator of devices with deterministic ordering by serial number.
+/// Check if two serial numbers are similar (differ by only one character).
+/// This handles XR22802 devices where I2C and EDGE interfaces have
+/// serial numbers that differ by only the first character.
+fn are_serial_numbers_similar(serial1: &str, serial2: &str) -> bool {
+    if serial1.len() != serial2.len() || serial1.len() < 8 {
+        return false;
+    }
+
+    let mut diff_count = 0;
+    for (c1, c2) in serial1.chars().zip(serial2.chars()) {
+        if c1 != c2 {
+            diff_count += 1;
+            if diff_count > 1 {
+                return false;
+            }
+        }
+    }
+
+    diff_count == 1
+}
+
+/// Find a device with a similar serial number in the HashMap.
+/// Returns the key of the similar device if found.
+fn find_similar_serial_key(
+    devices_by_serial: &HashMap<String, XrDeviceInfo>,
+    target_serial: &str,
+) -> Option<String> {
+    for existing_serial in devices_by_serial.keys() {
+        if are_serial_numbers_similar(existing_serial, target_serial) {
+            return Some(existing_serial.to_string());
+        }
+    }
+    None
+}
+
 pub fn device_find(hid_api: &HidApi) -> impl Iterator<Item = XrDeviceInfo> + '_ {
     use std::collections::HashMap;
 
@@ -52,8 +88,22 @@ pub fn device_find(hid_api: &HidApi) -> impl Iterator<Item = XrDeviceInfo> + '_ 
 
     for info in find_logical_devices(hid_api) {
         if let Some(serial) = &info.serial_number {
+            // First try exact match
+            let device_key = if devices_by_serial.contains_key(serial) {
+                serial.clone()
+            } else if let Some(similar_key) = find_similar_serial_key(&devices_by_serial, serial) {
+                // Found a device with similar serial number - group them together
+                debug!(
+                    "Grouping devices with similar serial numbers: {} and {}",
+                    similar_key, serial
+                );
+                similar_key
+            } else {
+                serial.clone()
+            };
+
             let device = devices_by_serial
-                .entry(serial.clone())
+                .entry(device_key)
                 .or_insert_with(|| XrDeviceInfo {
                     vid: info.vid,
                     serial_number: info.serial_number.clone(),
@@ -103,6 +153,101 @@ pub fn device_find(hid_api: &HidApi) -> impl Iterator<Item = XrDeviceInfo> + '_ 
     });
 
     all_devices.into_iter()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_are_serial_numbers_similar() {
+        // Test XR22802 case - serial numbers differing by first character
+        assert!(are_serial_numbers_similar("6507DA00", "7507DA00"));
+        assert!(are_serial_numbers_similar("7507DA00", "6507DA00"));
+
+        // Test other single character differences
+        assert!(are_serial_numbers_similar("1234ABCD", "1234ABCE"));
+        assert!(are_serial_numbers_similar("ABCD1234", "BBCD1234"));
+        assert!(are_serial_numbers_similar("12345678", "12345679"));
+
+        // Test multiple character differences (should not be similar)
+        assert!(!are_serial_numbers_similar("6507DA00", "7507DB00"));
+        assert!(!are_serial_numbers_similar("1234ABCD", "1234ABEF"));
+        assert!(!are_serial_numbers_similar("ABCD1234", "ABCE1235"));
+
+        // Test different lengths (should not be similar)
+        assert!(!are_serial_numbers_similar("6507DA00", "6507DA001"));
+        assert!(!are_serial_numbers_similar("6507DA0", "6507DA00"));
+        assert!(!are_serial_numbers_similar("SHORT", "VERYLONGSERIAL"));
+
+        // Test too short serials (should not be similar)
+        assert!(!are_serial_numbers_similar("1234567", "1234568"));
+        assert!(!are_serial_numbers_similar("SHORT", "SHART"));
+
+        // Test identical serials (should not be similar - they're exact matches)
+        assert!(!are_serial_numbers_similar("6507DA00", "6507DA00"));
+        assert!(!are_serial_numbers_similar("IDENTICAL", "IDENTICAL"));
+
+        // Test empty strings
+        assert!(!are_serial_numbers_similar("", ""));
+        assert!(!are_serial_numbers_similar("6507DA00", ""));
+        assert!(!are_serial_numbers_similar("", "6507DA00"));
+    }
+
+    #[test]
+    fn test_find_similar_serial_key() {
+        use std::collections::HashMap;
+
+        let mut devices: HashMap<String, XrDeviceInfo> = HashMap::new();
+
+        // Add a device with serial "6507DA00"
+        devices.insert(
+            "6507DA00".to_string(),
+            XrDeviceInfo {
+                vid: 0x04E2,
+                serial_number: Some("6507DA00".to_string()),
+                product_string: Some("Test Device".to_string()),
+                i2c_interface: None,
+                edge_interface: None,
+            },
+        );
+
+        // Should find similar serial "7507DA00"
+        assert_eq!(
+            find_similar_serial_key(&devices, "7507DA00"),
+            Some("6507DA00".to_string())
+        );
+
+        // Should not find dissimilar serial "8507DB00"
+        assert_eq!(find_similar_serial_key(&devices, "8507DB00"), None);
+
+        // Should not find exact match (that would be handled by contains_key)
+        assert_eq!(find_similar_serial_key(&devices, "6507DA00"), None);
+
+        // Add another device with different serial pattern
+        devices.insert(
+            "ABCD1234".to_string(),
+            XrDeviceInfo {
+                vid: 0x04E2,
+                serial_number: Some("ABCD1234".to_string()),
+                product_string: Some("Test Device 2".to_string()),
+                i2c_interface: None,
+                edge_interface: None,
+            },
+        );
+
+        // Should still find the first device for XR22802 pattern
+        assert_eq!(
+            find_similar_serial_key(&devices, "7507DA00"),
+            Some("6507DA00".to_string())
+        );
+
+        // Should find the second device for its pattern
+        assert_eq!(
+            find_similar_serial_key(&devices, "ABCD1235"),
+            Some("ABCD1234".to_string())
+        );
+    }
 }
 
 /// Interface information for a single USB HID interface.

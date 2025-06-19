@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.5] - 2025-01-27
+
+### Fixed
+- **CRITICAL: XR22802 GPIO Capability Detection**: Fixed bug where XR22802 devices were incorrectly detected as having only 8 GPIO pins instead of 32 pins
+  - **Root Cause**: XR22802 devices have two USB interfaces with different serial numbers (e.g., "6507DA00" for I2C and "7507DA00" for EDGE)
+  - **Impact**: Applications using GPIO pins 8-31 failed with "UnsupportedFeature" errors in v0.9.4
+  - **Solution**: Enhanced device grouping logic to detect and group interfaces with serial numbers that differ by only one character
+  - **Result**: XR22802 devices now correctly report 32 GPIO pins and full GPIO functionality is restored
+
 ## [0.9.4] - 2025-01-27
 
 ### Added
