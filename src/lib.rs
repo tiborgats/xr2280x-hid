@@ -280,6 +280,102 @@
 //!
 //! See the `gpio_efficient_config.rs` example for comprehensive performance demonstrations and measurements.
 //!
+//! ## Advanced Error Handling
+//!
+//! The XR2280x-HID crate provides comprehensive, context-aware error handling designed to make debugging
+//! hardware issues and application problems much easier.
+//!
+//! ### Specific Error Types by Domain
+//!
+//! Instead of generic errors, the crate provides domain-specific error variants:
+//!
+//! **I2C Communication Errors:**
+//! - [`Error::I2cNack`] - Device not found (normal during scanning)
+//! - [`Error::I2cTimeout`] - Hardware issues (stuck bus, power problems)
+//! - [`Error::I2cArbitrationLost`] - Bus contention or interference
+//! - [`Error::I2cRequestError`] - Invalid parameters or data length
+//! - [`Error::I2cUnknownError`] - Firmware-level issues
+//!
+//! **GPIO Hardware Errors:**
+//! - [`Error::GpioRegisterReadError`] - Pin-specific register read failures
+//! - [`Error::GpioRegisterWriteError`] - Pin-specific register write failures
+//! - [`Error::GpioConfigurationError`] - Invalid pin configuration combinations
+//! - [`Error::GpioHardwareError`] - Hardware-level GPIO issues
+//! - [`Error::PinArgumentOutOfRange`] - Invalid pin numbers
+//!
+//! **PWM Configuration Errors:**
+//! - [`Error::PwmConfigurationError`] - Channel configuration issues
+//! - [`Error::PwmParameterError`] - Invalid timing or duty cycle parameters
+//! - [`Error::PwmHardwareError`] - PWM hardware communication failures
+//!
+//! ### Enhanced Error Context
+//!
+//! Each error includes specific context to help with debugging:
+//!
+//! ```no_run
+//! # use xr2280x_hid::*;
+//! # use hidapi::HidApi;
+//! # fn example() -> Result<()> {
+//! # let hid_api = HidApi::new()?;
+//! # let device = Xr2280x::device_open_first(&hid_api)?;
+//! use xr2280x_hid::gpio::*;
+//!
+//! // GPIO errors include pin number and register details
+//! match device.gpio_set_direction(GpioPin::new(5)?, GpioDirection::Output) {
+//!     Err(Error::GpioRegisterWriteError { pin, register, message }) => {
+//!         eprintln!("Failed to configure pin {} register 0x{:04X}: {}", pin, register, message);
+//!         // Can implement pin-specific recovery logic
+//!     }
+//!     Err(Error::PinArgumentOutOfRange { pin, message }) => {
+//!         eprintln!("Invalid pin {}: {}", pin, message);
+//!         // Handle invalid pin number
+//!     }
+//!     Ok(_) => println!("Pin configured successfully"),
+//!     Err(e) => return Err(e),
+//! }
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! ### Error Recovery Strategies
+//!
+//! The specific error types enable targeted recovery strategies:
+//!
+//! ```no_run
+//! # use xr2280x_hid::*;
+//! # use hidapi::HidApi;
+//! # fn example() -> Result<()> {
+//! # let hid_api = HidApi::new()?;
+//! # let device = Xr2280x::device_open_first(&hid_api)?;
+//! // I2C error handling with specific recovery actions
+//! match device.i2c_scan_default() {
+//!     Ok(devices) => println!("Found devices: {:02X?}", devices),
+//!     Err(Error::I2cTimeout { address }) => {
+//!         eprintln!("Hardware issue detected at address {}", address);
+//!         eprintln!("Recovery steps:");
+//!         eprintln!("  1. Check device power supply");
+//!         eprintln!("  2. Verify I2C pull-up resistors");
+//!         eprintln!("  3. Test with fewer devices connected");
+//!         // Could implement automatic retry logic here
+//!     }
+//!     Err(Error::I2cArbitrationLost { address }) => {
+//!         eprintln!("Bus contention at {}, retrying...", address);
+//!         // Implement retry with exponential backoff
+//!     }
+//!     Err(e) => return Err(e),
+//! }
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! ### Benefits for Applications
+//!
+//! 1. **Precise Diagnostics**: Know exactly which pin, register, or device caused issues
+//! 2. **Targeted Recovery**: Different error types enable different recovery strategies
+//! 3. **Better User Experience**: Provide specific troubleshooting guidance to end users
+//! 4. **Robust Applications**: Handle transient vs permanent failures appropriately
+//! 5. **Development Efficiency**: Faster debugging with detailed error context
+//!
 //! ### Open by Path
 //!
 //! ```no_run

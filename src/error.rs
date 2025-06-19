@@ -67,6 +67,68 @@ pub enum Error {
         /// Detailed error message explaining the constraint.
         message: String,
     },
+    /// GPIO register read operation failed.
+    #[error("GPIO register read failed for pin {pin} (register 0x{register:04X}): {message}")]
+    GpioRegisterReadError {
+        /// The GPIO pin number that was being accessed.
+        pin: u8,
+        /// The register address that failed to read.
+        register: u16,
+        /// Additional error details.
+        message: String,
+    },
+    /// GPIO register write operation failed.
+    #[error("GPIO register write failed for pin {pin} (register 0x{register:04X}): {message}")]
+    GpioRegisterWriteError {
+        /// The GPIO pin number that was being accessed.
+        pin: u8,
+        /// The register address that failed to write.
+        register: u16,
+        /// Additional error details.
+        message: String,
+    },
+    /// Invalid GPIO configuration combination.
+    #[error("Invalid GPIO configuration for pin {pin}: {message}")]
+    GpioConfigurationError {
+        /// The GPIO pin number with the invalid configuration.
+        pin: u8,
+        /// Description of the configuration conflict.
+        message: String,
+    },
+    /// GPIO hardware-specific error.
+    #[error("GPIO hardware error on pin {pin}: {message}. Check pin connections and device power.")]
+    GpioHardwareError {
+        /// The GPIO pin number where the hardware error occurred.
+        pin: u8,
+        /// Description of the hardware issue.
+        message: String,
+    },
+    /// PWM channel configuration error.
+    #[error("PWM channel {channel} configuration error: {message}")]
+    PwmConfigurationError {
+        /// The PWM channel number (0 or 1).
+        channel: u8,
+        /// Description of the configuration issue.
+        message: String,
+    },
+    /// PWM parameter validation error.
+    #[error("PWM parameter validation failed for channel {channel}: {message}")]
+    PwmParameterError {
+        /// The PWM channel number.
+        channel: u8,
+        /// Description of the parameter issue.
+        message: String,
+    },
+    /// PWM hardware-specific error.
+    #[error(
+        "PWM hardware error on channel {channel}: {message}. Check device capabilities and pin assignments."
+    )]
+    PwmHardwareError {
+        /// The PWM channel number where the error occurred.
+        channel: u8,
+        /// Description of the hardware issue.
+        message: String,
+    },
     /// I2C slave device responded with NACK (not acknowledged).
     #[error(
         "No device found at I2C address {address}: Device did not acknowledge (NACK). This is normal when scanning for devices."
@@ -109,14 +171,7 @@ pub enum Error {
         /// Raw status flags from the device indicating the error condition.
         flags: u8,
     },
-    /// HID feature report operation failed.
-    #[error(
-        "Feature report error (e.g., incorrect length, device error) while accessing register 0x{reg_addr:04X}"
-    )]
-    FeatureReportError {
-        /// The register address that was being accessed.
-        reg_addr: u16,
-    },
+
     /// Provided buffer is smaller than required for the operation.
     #[error("Provided buffer is too small (expected at least {expected}, got {actual})")]
     BufferTooSmall {
@@ -161,4 +216,31 @@ pub(crate) fn unsupported_pwm_pin(pin: u8) -> Error {
         "Assigning PWM to pin {} requires XR22802/XR22804 (XR22800/1 only support pins 0-7)",
         pin
     ))
+}
+
+// Helpers for creating specific GPIO errors
+pub(crate) fn gpio_register_read_error(pin: u8, register: u16, message: String) -> Error {
+    Error::GpioRegisterReadError {
+        pin,
+        register,
+        message,
+    }
+}
+
+pub(crate) fn gpio_register_write_error(pin: u8, register: u16, message: String) -> Error {
+    Error::GpioRegisterWriteError {
+        pin,
+        register,
+        message,
+    }
+}
+
+// Helpers for creating specific PWM errors
+
+pub(crate) fn pwm_parameter_error(channel: u8, message: String) -> Error {
+    Error::PwmParameterError { channel, message }
+}
+
+pub(crate) fn pwm_hardware_error(channel: u8, message: String) -> Error {
+    Error::PwmHardwareError { channel, message }
 }

@@ -2,7 +2,7 @@
 
 use crate::consts;
 use crate::device::Xr2280x;
-use crate::error::{Error, Result, unsupported_pwm_pin};
+use crate::error::{Error, Result, pwm_hardware_error, pwm_parameter_error, unsupported_pwm_pin};
 use crate::gpio::GpioPin;
 use log::{debug, trace};
 
@@ -42,25 +42,32 @@ impl Xr2280x {
     /// Returns `Err` if the time is out of range (1 - 4095 units).
     pub fn ns_to_pwm_units(&self, nanoseconds: u64) -> Result<u16> {
         if nanoseconds == 0 {
-            return Err(Error::ArgumentOutOfRange(
+            return Err(pwm_parameter_error(
+                255, // Generic channel since this is a utility function
                 "PWM time must be greater than 0 ns".to_string(),
             ));
         }
         let units = (nanoseconds as f64 / consts::edge::PWM_UNIT_TIME_NS).round() as u64;
         if units < consts::edge::PWM_MIN_UNITS as u64 {
-            Err(Error::ArgumentOutOfRange(format!(
-                "PWM time {} ns is too small (min {} ns)",
-                nanoseconds,
-                (consts::edge::PWM_MIN_UNITS as f64 * consts::edge::PWM_UNIT_TIME_NS).round()
-                    as u64
-            )))
+            Err(pwm_parameter_error(
+                255, // Generic channel since this is a utility function
+                format!(
+                    "PWM time {} ns is too small (min {} ns)",
+                    nanoseconds,
+                    (consts::edge::PWM_MIN_UNITS as f64 * consts::edge::PWM_UNIT_TIME_NS).round()
+                        as u64
+                ),
+            ))
         } else if units > consts::edge::PWM_MAX_UNITS as u64 {
-            Err(Error::ArgumentOutOfRange(format!(
-                "PWM time {} ns is too large (max {} ns)",
-                nanoseconds,
-                (consts::edge::PWM_MAX_UNITS as f64 * consts::edge::PWM_UNIT_TIME_NS).round()
-                    as u64
-            )))
+            Err(pwm_parameter_error(
+                255, // Generic channel since this is a utility function
+                format!(
+                    "PWM time {} ns is too large (max {} ns)",
+                    nanoseconds,
+                    (consts::edge::PWM_MAX_UNITS as f64 * consts::edge::PWM_UNIT_TIME_NS).round()
+                        as u64
+                ),
+            ))
         } else {
             Ok(units as u16)
         }
@@ -86,18 +93,21 @@ impl Xr2280x {
         match (high_units, low_units) {
             (1..=4095, 1..=4095) => {} // Valid range
             _ => {
-                return Err(Error::ArgumentOutOfRange(format!(
-                    "PWM period units must be 1-4095 (got high={}, low={})",
-                    high_units, low_units
-                )));
+                return Err(pwm_parameter_error(
+                    channel as u8,
+                    format!(
+                        "PWM period units must be 1-4095 (got high={}, low={})",
+                        high_units, low_units
+                    ),
+                ));
             }
         }
         debug!(
             "Setting {:?} periods: high={} units, low={} units",
             channel, high_units, low_units
         );
-        self.write_hid_register(reg_high, high_units)?;
-        self.write_hid_register(reg_low, low_units)?;
+        self.write_pwm_register(channel, reg_high, high_units)?;
+        self.write_pwm_register(channel, reg_low, low_units)?;
         Ok(())
     }
 
@@ -114,8 +124,8 @@ impl Xr2280x {
             PwmChannel::Pwm0 => (consts::edge::REG_PWM0_HIGH, consts::edge::REG_PWM0_LOW),
             PwmChannel::Pwm1 => (consts::edge::REG_PWM1_HIGH, consts::edge::REG_PWM1_LOW),
         };
-        let high_units = self.read_hid_register(reg_high)?;
-        let low_units = self.read_hid_register(reg_low)?;
+        let high_units = self.read_pwm_register(channel, reg_high)?;
+        let low_units = self.read_pwm_register(channel, reg_low)?;
         trace!(
             "Read {:?} periods: high={} units, low={} units",
             channel, high_units, low_units
@@ -143,11 +153,11 @@ impl Xr2280x {
             PwmChannel::Pwm0 => consts::edge::REG_PWM0_CTRL,
             PwmChannel::Pwm1 => consts::edge::REG_PWM1_CTRL,
         };
-        let current = self.read_hid_register(reg)?;
+        let current = self.read_pwm_register(channel, reg)?;
         let new_value = (current & !consts::edge::pwm_ctrl::PIN_MASK)
             | ((pin.number() as u16) << consts::edge::pwm_ctrl::PIN_SHIFT);
         debug!("Setting {:?} to pin {}", channel, pin.number());
-        self.write_hid_register(reg, new_value)?;
+        self.write_pwm_register(channel, reg, new_value)?;
         Ok(())
     }
 
@@ -157,7 +167,7 @@ impl Xr2280x {
             PwmChannel::Pwm0 => consts::edge::REG_PWM0_CTRL,
             PwmChannel::Pwm1 => consts::edge::REG_PWM1_CTRL,
         };
-        let value = self.read_hid_register(reg)?;
+        let value = self.read_pwm_register(channel, reg)?;
         let pin_num =
             ((value & consts::edge::pwm_ctrl::PIN_MASK) >> consts::edge::pwm_ctrl::PIN_SHIFT) as u8;
         GpioPin::new(pin_num)
@@ -174,7 +184,7 @@ impl Xr2280x {
             PwmChannel::Pwm0 => consts::edge::REG_PWM0_CTRL,
             PwmChannel::Pwm1 => consts::edge::REG_PWM1_CTRL,
         };
-        let current = self.read_hid_register(reg)?;
+        let current = self.read_pwm_register(channel, reg)?;
         let enable_bits = if enable {
             consts::edge::pwm_ctrl::ENABLE_MASK
         } else {
@@ -188,7 +198,8 @@ impl Xr2280x {
             PwmCommand::Undefined(raw) => match raw & !0b111 {
                 0 => raw,
                 _ => {
-                    return Err(Error::ArgumentOutOfRange(
+                    return Err(pwm_parameter_error(
+                        channel as u8,
                         "PWM command raw value must fit in 3 bits".to_string(),
                     ));
                 }
@@ -203,7 +214,7 @@ impl Xr2280x {
             "Setting {:?}: enable={}, command={:?} (ctrl=0x{:04X})",
             channel, enable, command, new_value
         );
-        self.write_hid_register(reg, new_value)?;
+        self.write_pwm_register(channel, reg, new_value)?;
         Ok(())
     }
 
@@ -213,7 +224,7 @@ impl Xr2280x {
             PwmChannel::Pwm0 => consts::edge::REG_PWM0_CTRL,
             PwmChannel::Pwm1 => consts::edge::REG_PWM1_CTRL,
         };
-        let value = self.read_hid_register(reg)?;
+        let value = self.read_pwm_register(channel, reg)?;
         let enabled = (value & consts::edge::pwm_ctrl::ENABLE_MASK) != 0;
         let cmd_raw =
             (value & consts::edge::pwm_ctrl::CMD_MASK) >> consts::edge::pwm_ctrl::CMD_SHIFT;
@@ -229,5 +240,48 @@ impl Xr2280x {
             channel, enabled, command
         );
         Ok((enabled, command))
+    }
+
+    /// PWM-specific wrapper for reading HID registers with enhanced error context.
+    fn read_pwm_register(&self, channel: PwmChannel, register: u16) -> Result<u16> {
+        self.read_hid_register(register).map_err(|e| match e {
+            Error::Hid(hid_err) => pwm_hardware_error(
+                channel as u8,
+                format!(
+                    "HID communication error for register 0x{:04X}: {}",
+                    register, hid_err
+                ),
+            ),
+            Error::InvalidReport(_) => pwm_hardware_error(
+                channel as u8,
+                format!(
+                    "Invalid HID report for register 0x{:04X} - check device connection",
+                    register
+                ),
+            ),
+            _ => e, // Pass through other error types unchanged
+        })
+    }
+
+    /// PWM-specific wrapper for writing HID registers with enhanced error context.
+    fn write_pwm_register(&self, channel: PwmChannel, register: u16, value: u16) -> Result<()> {
+        self.write_hid_register(register, value)
+            .map_err(|e| match e {
+                Error::Hid(hid_err) => pwm_hardware_error(
+                    channel as u8,
+                    format!(
+                        "HID communication error for register 0x{:04X}: {}",
+                        register, hid_err
+                    ),
+                ),
+                Error::InvalidReport(_) => pwm_hardware_error(
+                    channel as u8,
+                    format!(
+                        "Invalid HID report for register 0x{:04X} - check device connection and power",
+                        register
+                    ),
+                ),
+                _ => e, // Pass through other error types unchanged
+            })
     }
 }

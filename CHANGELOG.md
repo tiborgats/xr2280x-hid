@@ -47,13 +47,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Comprehensive unit tests covering all 10-bit addressing edge cases
   - `i2c_10bit_addressing.rs` example demonstrating proper 10-bit I2C usage
   - Enhanced validation and error handling for 10-bit addresses
+- **Streamlined Error Handling System**: Domain-specific error variants with detailed context for better debugging
+  - **GPIO-Specific Errors**: `GpioRegisterReadError`, `GpioRegisterWriteError`, `GpioConfigurationError`, `GpioHardwareError`
+  - **PWM-Specific Errors**: `PwmConfigurationError`, `PwmParameterError`, `PwmHardwareError`
+  - **Context-Rich Error Messages**: Each error includes specific pin numbers, register addresses, and actionable troubleshooting guidance
+  - **Error Recovery Support**: Specific error types enable targeted recovery strategies instead of generic error handling
+  - **⚠️ BREAKING CHANGE**: Removed generic `FeatureReportError` in favor of domain-specific error variants
 - **New Examples**: 
   - `gpio_efficient_config.rs` - Comprehensive performance demonstration and benchmarking
   - `i2c_10bit_addressing.rs` - Complete 10-bit I2C addressing guide and examples
   - Updated `blink.rs` - Shows efficient single-pin setup pattern
-- **Architectural Documentation**: `PERFORMANCE_IMPROVEMENTS.md` detailing the complete analysis and solutions
 
 ### Changed
+- **Error Handling Architecture**: Replaced generic HID errors with specific, context-aware error variants
+  - GPIO operations now provide pin-specific error context instead of generic `FeatureReportError`
+  - PWM operations include channel-specific error details with hardware troubleshooting guidance
+  - I2C errors already provided specific variants, now consistently applied across all domains
 - **GPIO Module Documentation**: Enhanced with detailed performance impact analysis and recommendations
 - **Main Library Documentation**: Added critical performance best practices section with clear do/don't patterns
 - **Individual GPIO Functions**: Added performance warnings and HID transaction cost information to existing functions
@@ -94,7 +103,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Performance optimization strategies integrated into [main library docs](https://docs.rs/xr2280x-hid/latest/xr2280x_hid/index.html#performance-architecture-and-best-practices)
   - GPIO performance best practices integrated into [GPIO module docs](https://docs.rs/xr2280x-hid/latest/xr2280x_hid/gpio/index.html)
   - I2C error troubleshooting integrated into [I2C module docs](https://docs.rs/xr2280x-hid/latest/xr2280x_hid/i2c/index.html)
+  - Advanced error handling guide integrated into [main library docs](https://docs.rs/xr2280x-hid/latest/xr2280x_hid/index.html#advanced-error-handling)
   - Removed separate .md files in favor of standard docs.rs documentation system
+- **Error Context Enhancement**: All hardware communication errors now include specific context
+  - GPIO register operations provide pin number, register address, and targeted troubleshooting steps
+  - PWM operations include channel information and hardware-specific guidance
+  - Enables precise diagnostics and targeted recovery strategies for robust applications
 
 ### Migration Guide
 - **Immediate Benefits**: Fixed HID parsing bugs improve data accuracy without any code changes required
@@ -110,6 +124,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Group operations by GPIO hardware boundaries (0-15 vs 16-31) for maximum efficiency
   - Avoid frequent reconfiguration of the same pins
 - **Performance Monitoring**: Enable debug logging to monitor HID transaction patterns, profile end-to-end timing for performance-critical applications
+- **Error Handling Strategy**: Leverage specific error types for robust application design
+  - Use `GpioRegisterReadError`/`GpioRegisterWriteError` for pin-specific diagnostics and recovery
+  - Handle `PwmParameterError` vs `PwmHardwareError` with different recovery approaches
+  - Implement targeted retry logic based on specific I2C error variants
+  - Provide user-friendly error messages using the detailed context in each error variant
 
 ## [0.9.5] - 2025-01-27
 

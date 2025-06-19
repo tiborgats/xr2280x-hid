@@ -55,7 +55,9 @@
 
 use crate::consts;
 use crate::device::Xr2280x;
-use crate::error::{Error, Result, unsupported_gpio_group1};
+use crate::error::{
+    Error, Result, gpio_register_read_error, gpio_register_write_error, unsupported_gpio_group1,
+};
 use log::{debug, trace};
 
 /// Represents a GPIO group for bulk operations.
@@ -161,7 +163,7 @@ impl Xr2280x {
             0 => consts::edge::REG_FUNC_SEL_0,
             _ => consts::edge::REG_FUNC_SEL_1,
         };
-        let value = self.read_hid_register(reg)?;
+        let value = self.read_gpio_register(pin, reg)?;
         Ok((value & pin.mask()) != 0)
     }
 
@@ -170,13 +172,14 @@ impl Xr2280x {
     /// **Performance**: Uses 2 HID transactions (1 read + 1 write).
     /// For better performance with multiple pins, use `gpio_set_direction_masked()` or the
     /// `gpio_setup_*()` functions.
+    /// Sets the direction of a GPIO pin (input or output).
     pub fn gpio_set_direction(&self, pin: GpioPin, direction: GpioDirection) -> Result<()> {
         self.check_gpio_pin_support(pin)?;
         let reg = match pin.group_index() {
             0 => consts::edge::REG_DIR_0,
             _ => consts::edge::REG_DIR_1,
         };
-        let current = self.read_hid_register(reg)?;
+        let current = self.read_gpio_register(pin, reg)?;
         let new_value = match direction {
             GpioDirection::Input => current & !pin.mask(), // 0 = Input
             GpioDirection::Output => current | pin.mask(), // 1 = Output
@@ -186,7 +189,7 @@ impl Xr2280x {
             pin.number(),
             direction
         );
-        self.write_hid_register(reg, new_value)?;
+        self.write_gpio_register(pin, reg, new_value)?;
         Ok(())
     }
 
@@ -197,7 +200,7 @@ impl Xr2280x {
             0 => consts::edge::REG_DIR_0,
             _ => consts::edge::REG_DIR_1,
         };
-        let value = self.read_hid_register(reg)?;
+        let value = self.read_gpio_register(pin, reg)?;
         Ok(match (value & pin.mask()) != 0 {
             true => GpioDirection::Output,
             false => GpioDirection::Input,
@@ -221,8 +224,8 @@ impl Xr2280x {
             pin.mask()
         );
         match level {
-            GpioLevel::High => self.write_hid_register(reg_set, pin.mask())?,
-            GpioLevel::Low => self.write_hid_register(reg_clear, pin.mask())?,
+            GpioLevel::High => self.write_gpio_register(pin, reg_set, pin.mask())?,
+            GpioLevel::Low => self.write_gpio_register(pin, reg_clear, pin.mask())?,
         }
         Ok(())
     }
@@ -234,12 +237,12 @@ impl Xr2280x {
             0 => consts::edge::REG_STATE_0,
             _ => consts::edge::REG_STATE_1,
         };
-        let value = self.read_hid_register(reg)?;
+        let value = self.read_gpio_register(pin, reg)?;
         let level = match (value & pin.mask()) != 0 {
             true => GpioLevel::High,
             false => GpioLevel::Low,
         };
-        trace!("Read {:?} from GPIO pin {}", level, pin.number());
+        trace!("GPIO pin {} read as {:?}", pin.number(), level);
         Ok(level)
     }
 
@@ -260,24 +263,24 @@ impl Xr2280x {
         match pull {
             GpioPull::None => {
                 // Clear both pull-up and pull-down
-                let up_val = self.read_hid_register(reg_up)?;
-                self.write_hid_register(reg_up, up_val & !pin.mask())?;
-                let down_val = self.read_hid_register(reg_down)?;
-                self.write_hid_register(reg_down, down_val & !pin.mask())?;
+                let up_val = self.read_gpio_register(pin, reg_up)?;
+                self.write_gpio_register(pin, reg_up, up_val & !pin.mask())?;
+                let down_val = self.read_gpio_register(pin, reg_down)?;
+                self.write_gpio_register(pin, reg_down, down_val & !pin.mask())?;
             }
             GpioPull::Up => {
                 // Set pull-up, clear pull-down
-                let up_val = self.read_hid_register(reg_up)?;
-                self.write_hid_register(reg_up, up_val | pin.mask())?;
-                let down_val = self.read_hid_register(reg_down)?;
-                self.write_hid_register(reg_down, down_val & !pin.mask())?;
+                let up_val = self.read_gpio_register(pin, reg_up)?;
+                self.write_gpio_register(pin, reg_up, up_val | pin.mask())?;
+                let down_val = self.read_gpio_register(pin, reg_down)?;
+                self.write_gpio_register(pin, reg_down, down_val & !pin.mask())?;
             }
             GpioPull::Down => {
                 // Clear pull-up, set pull-down
-                let up_val = self.read_hid_register(reg_up)?;
-                self.write_hid_register(reg_up, up_val & !pin.mask())?;
-                let down_val = self.read_hid_register(reg_down)?;
-                self.write_hid_register(reg_down, down_val | pin.mask())?;
+                let up_val = self.read_gpio_register(pin, reg_up)?;
+                self.write_gpio_register(pin, reg_up, up_val & !pin.mask())?;
+                let down_val = self.read_gpio_register(pin, reg_down)?;
+                self.write_gpio_register(pin, reg_down, down_val | pin.mask())?;
             }
         }
         Ok(())
@@ -291,8 +294,8 @@ impl Xr2280x {
             _ => (consts::edge::REG_PULL_UP_1, consts::edge::REG_PULL_DOWN_1),
         };
 
-        let up_val = self.read_hid_register(reg_up)?;
-        let down_val = self.read_hid_register(reg_down)?;
+        let up_val = self.read_gpio_register(pin, reg_up)?;
+        let down_val = self.read_gpio_register(pin, reg_down)?;
 
         let has_pull_up = (up_val & pin.mask()) != 0;
         let has_pull_down = (down_val & pin.mask()) != 0;
@@ -315,14 +318,14 @@ impl Xr2280x {
         } else {
             consts::edge::REG_OPEN_DRAIN_1
         };
-        let current = self.read_hid_register(reg)?;
+        let current = self.read_gpio_register(pin, reg)?;
         let new_value = if enable {
             current | pin.mask()
         } else {
             current & !pin.mask()
         };
         debug!("Setting GPIO pin {} open-drain to {}", pin.number(), enable);
-        self.write_hid_register(reg, new_value)?;
+        self.write_gpio_register(pin, reg, new_value)?;
         Ok(())
     }
 
@@ -334,7 +337,7 @@ impl Xr2280x {
         } else {
             consts::edge::REG_OPEN_DRAIN_1
         };
-        let value = self.read_hid_register(reg)?;
+        let value = self.read_gpio_register(pin, reg)?;
         Ok((value & pin.mask()) != 0)
     }
 
@@ -349,14 +352,14 @@ impl Xr2280x {
         } else {
             consts::edge::REG_TRI_STATE_1
         };
-        let current = self.read_hid_register(reg)?;
+        let current = self.read_gpio_register(pin, reg)?;
         let new_value = if enable {
             current | pin.mask()
         } else {
             current & !pin.mask()
         };
         debug!("Setting GPIO pin {} tri-state to {}", pin.number(), enable);
-        self.write_hid_register(reg, new_value)?;
+        self.write_gpio_register(pin, reg, new_value)?;
         Ok(())
     }
 
@@ -368,7 +371,7 @@ impl Xr2280x {
         } else {
             consts::edge::REG_TRI_STATE_1
         };
-        let value = self.read_hid_register(reg)?;
+        let value = self.read_gpio_register(pin, reg)?;
         Ok((value & pin.mask()) != 0)
     }
 
@@ -542,7 +545,7 @@ impl Xr2280x {
         self.check_gpio_group_support(group)?;
         let reg_dir = self.get_gpio_reg_for_group(group, consts::edge::REG_DIR_0);
 
-        let current = self.read_hid_register(reg_dir)?;
+        let current = self.read_gpio_register_masked(group, reg_dir)?;
         let new_value = match direction {
             GpioDirection::Input => current & !mask, // 0 = Input
             GpioDirection::Output => current | mask, // 1 = Output
@@ -551,7 +554,7 @@ impl Xr2280x {
             "Setting {:?} pins (mask=0x{:04X}) direction to {:?}",
             group, mask, direction
         );
-        self.write_hid_register(reg_dir, new_value)?;
+        self.write_gpio_register_masked(group, reg_dir, new_value)?;
         Ok(())
     }
 
@@ -576,10 +579,10 @@ impl Xr2280x {
         );
 
         if set_mask != 0 {
-            self.write_hid_register(reg_set, set_mask)?;
+            self.write_gpio_register_masked(group, reg_set, set_mask)?;
         }
         if clear_mask != 0 {
-            self.write_hid_register(reg_clear, clear_mask)?;
+            self.write_gpio_register_masked(group, reg_clear, clear_mask)?;
         }
         Ok(())
     }
@@ -589,7 +592,7 @@ impl Xr2280x {
     pub fn gpio_read_group(&self, group: GpioGroup) -> Result<u16> {
         self.check_gpio_group_support(group)?;
         let reg_state = self.get_gpio_reg_for_group(group, consts::edge::REG_STATE_0);
-        let value = self.read_hid_register(reg_state)?;
+        let value = self.read_gpio_register_masked(group, reg_state)?;
         trace!("Read {:?} state: 0x{:04X}", group, value);
         Ok(value)
     }
@@ -644,7 +647,7 @@ impl Xr2280x {
         self.check_gpio_group_support(group)?;
         let reg_od = self.get_gpio_reg_for_group(group, consts::edge::REG_OPEN_DRAIN_0);
 
-        let current = self.read_hid_register(reg_od)?;
+        let current = self.read_gpio_register_masked(group, reg_od)?;
         let new_value = if enable {
             current | mask
         } else {
@@ -654,7 +657,7 @@ impl Xr2280x {
             "Setting {:?} pins (mask=0x{:04X}) open-drain to {}",
             group, mask, enable
         );
-        self.write_hid_register(reg_od, new_value)?;
+        self.write_gpio_register_masked(group, reg_od, new_value)?;
         Ok(())
     }
 
@@ -668,7 +671,7 @@ impl Xr2280x {
         self.check_gpio_group_support(group)?;
         let reg_ts = self.get_gpio_reg_for_group(group, consts::edge::REG_TRI_STATE_0);
 
-        let current = self.read_hid_register(reg_ts)?;
+        let current = self.read_gpio_register_masked(group, reg_ts)?;
         let new_value = if enable {
             current | mask
         } else {
@@ -678,7 +681,7 @@ impl Xr2280x {
             "Setting {:?} pins (mask=0x{:04X}) tri-state to {}",
             group, mask, enable
         );
-        self.write_hid_register(reg_ts, new_value)?;
+        self.write_gpio_register_masked(group, reg_ts, new_value)?;
         Ok(())
     }
 
@@ -710,11 +713,93 @@ impl Xr2280x {
         }
     }
 
+    /// Check if the specified GPIO group is supported by this device.
     pub(crate) fn check_gpio_group_support(&self, group: GpioGroup) -> Result<()> {
         if self.capabilities.gpio_count == 8 && group == GpioGroup::Group1 {
             Err(unsupported_gpio_group1())
         } else {
             Ok(())
         }
+    }
+
+    /// GPIO-specific wrapper for reading HID registers with enhanced error context.
+    fn read_gpio_register(&self, pin: GpioPin, register: u16) -> Result<u16> {
+        self.read_hid_register(register).map_err(|e| match e {
+            Error::Hid(hid_err) => gpio_register_read_error(
+                pin.number(),
+                register,
+                format!("HID communication error: {}", hid_err),
+            ),
+            Error::InvalidReport(_) => gpio_register_read_error(
+                pin.number(),
+                register,
+                "Invalid HID report received - check device connection".to_string(),
+            ),
+            _ => e, // Pass through other error types unchanged
+        })
+    }
+
+    /// GPIO-specific wrapper for writing HID registers with enhanced error context.
+    fn write_gpio_register(&self, pin: GpioPin, register: u16, value: u16) -> Result<()> {
+        self.write_hid_register(register, value)
+            .map_err(|e| match e {
+                Error::Hid(hid_err) => gpio_register_write_error(
+                    pin.number(),
+                    register,
+                    format!("HID communication error: {}", hid_err),
+                ),
+                Error::InvalidReport(_) => gpio_register_write_error(
+                    pin.number(),
+                    register,
+                    "Invalid HID report received - check device connection and power".to_string(),
+                ),
+                _ => e, // Pass through other error types unchanged
+            })
+    }
+
+    /// Group-aware GPIO register read with enhanced error context for masked operations.
+    fn read_gpio_register_masked(&self, group: GpioGroup, register: u16) -> Result<u16> {
+        self.read_hid_register(register).map_err(|e| match e {
+            Error::Hid(hid_err) => gpio_register_read_error(
+                group as u8,
+                register,
+                format!(
+                    "HID communication error for GPIO group {:?}: {}",
+                    group, hid_err
+                ),
+            ),
+            Error::InvalidReport(_) => gpio_register_read_error(
+                group as u8, // Use group index as pseudo-pin for error context
+                register,
+                format!(
+                    "Invalid HID report for GPIO group {:?} - check device connection",
+                    group
+                ),
+            ),
+            _ => e, // Pass through other error types unchanged
+        })
+    }
+
+    /// Group-aware GPIO register write with enhanced error context for masked operations.
+    fn write_gpio_register_masked(
+        &self,
+        group: GpioGroup,
+        register: u16,
+        value: u16,
+    ) -> Result<()> {
+        self.write_hid_register(register, value)
+            .map_err(|e| match e {
+                Error::Hid(hid_err) => gpio_register_write_error(
+                    group as u8,
+                    register,
+                    format!("HID communication error for GPIO group {:?}: {}", group, hid_err),
+                ),
+                Error::InvalidReport(_) => gpio_register_write_error(
+                    group as u8, // Use group index as pseudo-pin for error context
+                    register,
+                    format!("Invalid HID report for GPIO group {:?} - check device connection and power", group),
+                ),
+                _ => e, // Pass through other error types unchanged
+            })
     }
 }

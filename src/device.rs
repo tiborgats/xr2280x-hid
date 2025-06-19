@@ -505,13 +505,12 @@ impl Xr2280x {
                     debug!("Detected support for 32 GPIOs");
                     Capabilities { gpio_count: 32 }
                 }
-                Err(Error::FeatureReportError { .. }) => {
-                    debug!("Detected support for 8 GPIOs");
-                    Capabilities { gpio_count: 8 }
-                }
                 Err(e) => {
-                    warn!("Error during capability detection: {}", e);
-                    return Err(e);
+                    debug!(
+                        "Detected support for 8 GPIOs (failed to read GPIO Group 1 register): {}",
+                        e
+                    );
+                    Capabilities { gpio_count: 8 }
                 }
             }
         } else {
@@ -565,8 +564,11 @@ impl Xr2280x {
         match device.send_feature_report(&buf) {
             Ok(_) => Ok(()), // Treat any Ok as success
             Err(e) => {
-                trace!("send_feature_report error: {}", e);
-                Err(Error::FeatureReportError { reg_addr })
+                trace!(
+                    "send_feature_report error for register 0x{:04X}: {}",
+                    reg_addr, e
+                );
+                Err(Error::Hid(e))
             }
         }
     }
@@ -594,9 +596,12 @@ impl Xr2280x {
         match device.send_feature_report(&buf) {
             Ok(_) => Ok(()), // Treat any Ok as success
             Err(e) => {
-                trace!("send_feature_report error: {}", e);
-                Err(Error::FeatureReportError { reg_addr: 0xFFFF })
-            } // Indicate address setting failed
+                trace!(
+                    "send_feature_report error while setting read address: {}",
+                    e
+                );
+                Err(Error::Hid(e))
+            }
         }
     }
 
@@ -619,10 +624,10 @@ impl Xr2280x {
             Ok(len) if len == buf.len() => {
                 if buf[0] != consts::REPORT_ID_READ_HID_REGISTER {
                     warn!(
-                        "get_feature_report returned unexpected report ID: {:02X}",
-                        buf[0]
+                        "get_feature_report returned unexpected report ID: {:02X} for register 0x{:04X}",
+                        buf[0], reg_addr
                     );
-                    return Err(Error::FeatureReportError { reg_addr });
+                    return Err(Error::InvalidReport(buf[0] as usize));
                 }
                 let value = u16::from_le_bytes([buf[1], buf[2]]);
                 trace!("Read Reg 0x{:04X} = 0x{:04X}", reg_addr, value);
@@ -630,15 +635,19 @@ impl Xr2280x {
             }
             Ok(len) => {
                 warn!(
-                    "get_feature_report returned unexpected length: {} (expected {})",
+                    "get_feature_report returned unexpected length: {} (expected {}) for register 0x{:04X}",
                     len,
-                    buf.len()
+                    buf.len(),
+                    reg_addr
                 );
-                Err(Error::FeatureReportError { reg_addr })
+                Err(Error::InvalidReport(len))
             }
             Err(e) => {
-                trace!("get_feature_report error: {}", e);
-                Err(Error::FeatureReportError { reg_addr })
+                trace!(
+                    "get_feature_report error for register 0x{:04X}: {}",
+                    reg_addr, e
+                );
+                Err(Error::Hid(e))
             }
         }
     }
