@@ -60,10 +60,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 Run examples to see various features in action:
 
 ```bash
-cargo run --example enumerate_hardware   # List connected devices
-cargo run --example i2c_scan             # Scan I²C bus
-cargo run --example blink                # GPIO blink
-cargo run --example pwm_out              # PWM output
+cargo run --example enumerate_hardware          # List connected devices
+cargo run --example i2c_scan                    # Scan I²C bus
+cargo run --example blink                       # GPIO blink
+cargo run --example pwm_out                     # PWM output
+cargo run --example gpio_interrupt_safe_usage   # Safe vs unsafe interrupt handling
 ```
 
 ## GPIO Performance Best Practices

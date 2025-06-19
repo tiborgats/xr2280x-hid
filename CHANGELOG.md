@@ -53,7 +53,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Context-Rich Error Messages**: Each error includes specific pin numbers, register addresses, and actionable troubleshooting guidance
   - **Error Recovery Support**: Specific error types enable targeted recovery strategies instead of generic error handling
   - **⚠️ BREAKING CHANGE**: Removed generic `FeatureReportError` in favor of domain-specific error variants
-- **New Examples**: 
+- **GPIO Interrupt Safety Improvements**: Enhanced `parse_gpio_interrupt_report()` with explicit risk acknowledgment
+  - **⚠️ BREAKING CHANGE**: Function now marked `unsafe` to force explicit acknowledgment of speculative parsing risks
+  - **Comprehensive Safety Documentation**: Added detailed warnings about unverified hardware format assumptions
+  - **Input Validation**: Added robust bounds checking and detailed error messages to prevent panics
+  - **Safe Alternative**: New `get_raw_interrupt_data()` function provides raw access without parsing assumptions
+  - **Complete Example**: Added `gpio_interrupt_safe_usage.rs` demonstrating both safe and unsafe approaches with validation
+  - **Risk Mitigation**: Function now requires `unsafe` blocks and extensive documentation guides proper usage
+- **New Examples**:
   - `gpio_efficient_config.rs` - Comprehensive performance demonstration and benchmarking
   - `i2c_10bit_addressing.rs` - Complete 10-bit I2C addressing guide and examples
   - Updated `blink.rs` - Shows efficient single-pin setup pattern
