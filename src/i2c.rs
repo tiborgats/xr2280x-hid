@@ -1,4 +1,114 @@
 //! I2C communication functionality for XR2280x devices.
+//!
+//! # Error Handling and Troubleshooting
+//!
+//! I2C communication can fail for various reasons. Understanding these errors is crucial for robust applications.
+//!
+//! ## Quick Error Reference
+//!
+//! | Error | Meaning | Severity | Action |
+//! |-------|---------|----------|--------|
+//! | [`Error::I2cNack`] | No device at address | Normal | Continue scanning |
+//! | [`Error::I2cTimeout`] | Bus stuck or slow device | **Critical** | Check power/connections |
+//! | [`Error::I2cArbitrationLost`] | Bus contention | **Critical** | Check for interference |
+//! | [`Error::I2cRequestError`] | Invalid parameters | Software | Fix code parameters |
+//! | [`Error::I2cUnknownError`] | Firmware issue | Hardware | Power cycle device |
+//!
+//! ## Common Error Scenarios
+//!
+//! ### I2cNack - Device Not Found (Normal)
+//!
+//! ```no_run
+//! # use xr2280x_hid::*;
+//! # use hidapi::HidApi;
+//! # fn main() -> Result<()> {
+//! # let hid_api = HidApi::new()?;
+//! # let device = Xr2280x::device_open_first(&hid_api)?;
+//! match device.i2c_read_7bit(0x50, &mut [0u8; 1]) {
+//!     Err(Error::I2cNack { address }) => {
+//!         // This is NORMAL during scanning - just means no device at 0x50
+//!         println!("No device found at address {}", address);
+//!     }
+//!     Ok(_) => println!("Device found and responded"),
+//!     Err(e) => return Err(e), // Other errors need investigation
+//! }
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! ### I2cTimeout - Hardware Problem (Critical)
+//!
+//! ```no_run
+//! # use xr2280x_hid::*;
+//! # use hidapi::HidApi;
+//! # fn main() -> Result<()> {
+//! # let hid_api = HidApi::new()?;
+//! # let device = Xr2280x::device_open_first(&hid_api)?;
+//! match device.i2c_scan_default() {
+//!     Err(Error::I2cTimeout { address }) => {
+//!         eprintln!("⚠️  CRITICAL: I2C bus stuck at address {}", address);
+//!         eprintln!("Hardware troubleshooting required:");
+//!         eprintln!("  1. Check device power (3.3V)");
+//!         eprintln!("  2. Verify I2C pull-up resistors (4.7kΩ to 3.3V)");
+//!         eprintln!("  3. Disconnect devices one by one to isolate problem");
+//!         eprintln!("  4. Check for short circuits on SDA/SCL lines");
+//!         return Err(Error::I2cTimeout { address });
+//!     }
+//!     Ok(devices) => println!("Found devices: {:02X?}", devices),
+//!     Err(e) => return Err(e),
+//! }
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! ### Hardware Setup Requirements
+//!
+//! **⚠️ CRITICAL**: I2C requires external pull-up resistors!
+//!
+//! ```text
+//! XR2280x Device    I2C Bus Requirements    Target Device
+//!
+//! SDA  ────────────── 4.7kΩ ──── 3.3V     ────── SDA
+//!                       │
+//! SCL  ────────────── 4.7kΩ ──── 3.3V     ────── SCL
+//!                       │
+//! GND  ──────────────────────────────────────── GND
+//! ```
+//!
+//! **Common Hardware Issues:**
+//! - **Missing pull-ups**: Bus won't work at all
+//! - **Wrong pull-up voltage**: Use 3.3V, not 5V
+//! - **Weak pull-ups** (>10kΩ): Unreliable communication
+//! - **No power to target device**: Causes bus timeouts
+//! - **Incorrect wiring**: Double-check SDA/SCL connections
+//!
+//! ## Performance Considerations
+//!
+//! ### Stuck Bus Detection
+//!
+//! The library includes intelligent stuck bus detection to prevent 29+ second hangs:
+//!
+//! ```no_run
+//! # use xr2280x_hid::*;
+//! # use hidapi::HidApi;
+//! # fn main() -> Result<()> {
+//! # let hid_api = HidApi::new()?;
+//! # let device = Xr2280x::device_open_first(&hid_api)?;
+//! // Fast scanning with automatic stuck bus protection
+//! match device.i2c_scan_default() {
+//!     Ok(devices) => {
+//!         // Typical scan: ~1 second for 112 addresses
+//!         println!("Scan completed successfully");
+//!     }
+//!     Err(Error::I2cTimeout { .. }) => {
+//!         // Detected in <3 seconds instead of 29+ second hang
+//!         println!("Stuck bus detected quickly");
+//!     }
+//!     Err(e) => return Err(e),
+//! }
+//! # Ok(())
+//! # }
+//! ```
 
 use crate::consts;
 use crate::device::Xr2280x;
@@ -783,7 +893,14 @@ impl Xr2280x {
 
         // Prepare OUT report buffer (no Report ID byte needed for write())
         let mut out_buf = vec![0u8; consts::i2c::OUT_REPORT_WRITE_BUF_SIZE];
-        out_buf[0] = flags;
+
+        // Set flags - add 10-bit address flag if needed
+        let mut final_flags = flags;
+        if matches!(slave_addr, I2cAddress::Bit10(_)) {
+            final_flags |= consts::i2c::out_flags::TEN_BIT_ADDR;
+        }
+
+        out_buf[0] = final_flags;
         out_buf[1] = write_len as u8;
         out_buf[2] = read_len as u8;
 
@@ -795,7 +912,7 @@ impl Xr2280x {
             I2cAddress::Bit10(addr) => {
                 // For 10-bit, use special encoding per datasheet
                 // High byte in [3], low byte in first data position [4]
-                out_buf[3] = ((addr >> 8) & 0x03) as u8 | 0xF0; // 11110xx0 pattern
+                out_buf[3] = (((addr >> 8) & 0x03) << 1) as u8 | 0xF0; // 11110xx0 pattern
                 if write_len > 0 {
                     // If writing data, shift it and insert low addr byte
                     out_buf[5..5 + write_len].copy_from_slice(write_data);
@@ -809,7 +926,7 @@ impl Xr2280x {
             }
         }
 
-        // Copy write data for 7-bit or adjusted for 10-bit
+        // Copy write data for 7-bit addresses
         if matches!(slave_addr, I2cAddress::Bit7(_)) && write_len > 0 {
             out_buf[4..4 + write_len].copy_from_slice(write_data);
         }

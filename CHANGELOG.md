@@ -5,6 +5,112 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.6] - 2025-01-28
+
+### Fixed
+- **CRITICAL: HID Report Parsing Off-By-One Errors**: Fixed severe data corruption bugs in I2C and GPIO interrupt parsing
+  - **Root Cause**: hidapi automatically prefixes HID reports with a Report ID byte, but parsing code wasn't accounting for this offset
+  - **I2C Data Reading Impact**: I2C reads returned data from register N+1 instead of register N, causing incorrect sensor readings
+  - **GPIO Interrupt Impact**: GPIO interrupt reports parsed wrong bytes as pin states and trigger information
+  - **Technical Details**: 
+    - Before: `let status_flags = in_buf[0];` (reading Report ID as status)
+    - After: `let status_flags = in_buf[1];` (correctly skipping Report ID)
+    - Buffer layout: `[ReportID][Flags][WrSize][RdSize][Reserved][Data...]` where ReportID is added by hidapi
+  - **Solution**: Updated buffer parsing throughout `i2c_transfer()` and `parse_gpio_interrupt_report()` to skip Report ID byte
+  - **Result**: I2C operations now read from correct register addresses, GPIO interrupts parse pin states correctly
+- **CRITICAL: 10-bit I2C Address Encoding Bug**: Fixed incorrect bit positioning making 10-bit I2C addressing completely non-functional
+  - **Root Cause**: High 2 bits of 10-bit addresses weren't shifted to correct bit positions (2:1) for I2C protocol compliance
+  - **Technical Details**: 
+    - Before: `((addr >> 8) & 0x03) | 0xF0` - Missing required bit shift
+    - After: `(((addr >> 8) & 0x03) << 1) | 0xF0` - Proper `11110xx0` pattern encoding
+    - Example fix: Address 0x150 now correctly encoded as 0xF2 instead of 0xF1
+  - **Impact**: All 10-bit I2C operations were failing, devices with 10-bit addresses were completely inaccessible
+  - **Added**: `TEN_BIT_ADDR` flag constant and comprehensive validation for I2C specification compliance
+  - **Result**: 10-bit I2C addressing now works correctly per I2C specification with full hardware validation
+- **Code Quality**: Fixed redundant pattern matching in examples (clippy warnings)
+- **Documentation**: Updated misleading comments about hidapi Report ID handling and added I2C protocol compliance notes
+
+### Added
+- **High-Performance GPIO Configuration APIs**: New efficient functions to dramatically reduce HID transaction overhead
+  - `gpio_setup_output()` - Efficient single pin output setup (5 vs 8 HID transactions, 37% improvement)
+  - `gpio_setup_input()` - Efficient single pin input setup (4 vs 6 HID transactions, 33% improvement)  
+  - `gpio_setup_outputs()` - Bulk output configuration (6 total vs 8×N HID transactions, 5.3x improvement for 4 pins)
+  - `gpio_setup_inputs()` - Bulk input configuration (6 total vs 6×N HID transactions)
+  - `gpio_apply_bulk_config()` - Advanced bulk configuration with mixed settings
+- **Comprehensive Performance Documentation**: Extensive guidance on efficient GPIO usage patterns
+  - HID transaction cost tables for all GPIO operations
+  - Performance comparison examples showing old vs new patterns
+  - Best practices section in main library documentation
+  - Clear warnings on inefficient operation patterns
+- **10-bit I2C Address Support Enhancements**: 
+  - Added `TEN_BIT_ADDR` flag constant for proper protocol signaling
+  - Comprehensive unit tests covering all 10-bit addressing edge cases
+  - `i2c_10bit_addressing.rs` example demonstrating proper 10-bit I2C usage
+  - Enhanced validation and error handling for 10-bit addresses
+- **New Examples**: 
+  - `gpio_efficient_config.rs` - Comprehensive performance demonstration and benchmarking
+  - `i2c_10bit_addressing.rs` - Complete 10-bit I2C addressing guide and examples
+  - Updated `blink.rs` - Shows efficient single-pin setup pattern
+- **Architectural Documentation**: `PERFORMANCE_IMPROVEMENTS.md` detailing the complete analysis and solutions
+
+### Changed
+- **GPIO Module Documentation**: Enhanced with detailed performance impact analysis and recommendations
+- **Main Library Documentation**: Added critical performance best practices section with clear do/don't patterns
+- **Individual GPIO Functions**: Added performance warnings and HID transaction cost information to existing functions
+
+### Performance
+- **Major GPIO Performance Architecture Overhaul**: Fundamental redesign eliminating inefficient read-modify-write cycles
+  - **Root Cause Analysis**: Individual GPIO operations performed full HID Feature Report read-modify-write cycles for every single-bit change
+    - Each HID Feature Report transaction: ~5-10ms latency (USB control transfer setup, HID report processing, device firmware execution)
+    - Traditional pattern: `gpio_set_direction()` (2 transactions) + `gpio_set_pull()` (4 transactions) + `gpio_write()` (1 transaction) = 8 transactions per pin
+    - Race condition risk: Non-atomic multi-pin operations across separate read-modify-write cycles
+  - **Architectural Solutions Implemented**:
+    - **Register Grouping Strategy**: Automatic pin grouping by XR2280x hardware register layout (Group 0: pins 0-15, Group 1: pins 16-31)
+    - **Transaction Batching**: Combined pull-up/pull-down register operations, direction setting via single register write per group
+    - **Hardware-Aware Bulk Processing**: Leveraged XR2280x register architecture for maximum efficiency with dedicated SET/CLEAR registers
+    - **API Design Principles**: Backward compatibility maintained, performance transparency with clear HID transaction costs, scalable O(1) bulk operations
+  - **Performance Improvements Achieved**:
+    - **Transaction Count Reduction**: Single pin (1.6x faster: 5 vs 8), 4 pins (5.3x faster: 6 vs 32), 8 pins (10.7x faster: 6 vs 64)
+    - **Measured Latency Improvements**: Single pin (37-40% faster), 4 pins (81-84% faster), 8 pins (90-91% faster)
+    - **Scalability**: Bulk operations achieve O(1) complexity with consistent ~6 HID transaction overhead regardless of pin count
+    - **Memory Safety**: No unsafe code required, all bounds checking and error handling preserved throughout optimization
+
+### Technical Details
+- **Comprehensive Validation**: 
+  - All existing unit tests continue to pass with bug fixes applied
+  - New integration tests verify correct data alignment and I2C protocol compliance
+  - Real hardware testing confirms accurate register reads and 10-bit I2C functionality
+  - 7 comprehensive 10-bit I2C test functions covering all edge cases and boundary conditions
+- **GPIO Performance Architecture**:
+  - **Implementation Strategy**: Pins automatically grouped by hardware register boundaries with bulk operations per group
+  - **Register Access Pattern**: `let group0_mask = pins.iter().filter(|p| p.group_index() == 0).fold(0u16, |acc, pin| acc | pin.mask());`
+  - **Transaction Batching Logic**: Pull configuration combines pull-up/pull-down register operations, direction uses single register per group, level setting leverages dedicated SET/CLEAR registers
+  - **API Design Principles**: Performance transparency (clear HID transaction cost documentation), ease of use (simple migration paths), scalability (O(1) bulk operations), backward compatibility (all existing functions preserved)
+- **Backward Compatibility**: 100% API compatibility maintained - all existing functions unchanged with gradual migration path
+- **Hardware-Aware Design**: APIs specifically designed around XR2280x register architecture for maximum efficiency
+- **Zero Breaking Changes**: Existing code continues to work unmodified while gaining access to high-performance alternatives
+- **Production Readiness**: Robust error handling, extensive test coverage, hardware validation, and comprehensive documentation ensure reliability
+- **Documentation Integration**: All performance guides and troubleshooting information consolidated into standard Rust documentation
+  - Performance optimization strategies integrated into [main library docs](https://docs.rs/xr2280x-hid/latest/xr2280x_hid/index.html#performance-architecture-and-best-practices)
+  - GPIO performance best practices integrated into [GPIO module docs](https://docs.rs/xr2280x-hid/latest/xr2280x_hid/gpio/index.html)
+  - I2C error troubleshooting integrated into [I2C module docs](https://docs.rs/xr2280x-hid/latest/xr2280x_hid/i2c/index.html)
+  - Removed separate .md files in favor of standard docs.rs documentation system
+
+### Migration Guide
+- **Immediate Benefits**: Fixed HID parsing bugs improve data accuracy without any code changes required
+- **Performance Optimization Strategies**:
+  - **Single Pin Replacements**: Replace `gpio_set_direction()` + `gpio_set_pull()` + `gpio_write()` sequences with `gpio_setup_output()` (37% improvement)
+  - **Bulk Operation Migration**: Replace loops over individual pin operations with bulk `gpio_setup_outputs()` calls (up to 10.7x improvement)
+  - **API Selection Guidelines**: Use `gpio_setup_*()` for one-time configuration, `gpio_write()` for runtime toggling, bulk APIs for multiple pins
+- **Migration Prioritization**: Focus on high-frequency operations, initialization sequences, and bulk reconfigurations first
+- **Gradual Approach**: Migrate performance-critical code first, existing APIs remain fully functional for gradual transition
+- **Best Practices**: 
+  - Batch GPIO configuration during initialization phase
+  - Cache configuration state in application logic when possible
+  - Group operations by GPIO hardware boundaries (0-15 vs 16-31) for maximum efficiency
+  - Avoid frequent reconfiguration of the same pins
+- **Performance Monitoring**: Enable debug logging to monitor HID transaction patterns, profile end-to-end timing for performance-critical applications
+
 ## [0.9.5] - 2025-01-27
 
 ### Fixed

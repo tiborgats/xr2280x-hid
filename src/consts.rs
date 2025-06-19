@@ -40,7 +40,8 @@ pub mod i2c {
         /// Send ACK after last read byte (default is NACK).
         #[allow(dead_code)] // Used externally via i2c_transfer_raw
         pub const ACK_LAST_READ: u8 = 1 << 2; // Default is NACK last read
-        // Bits 3 reserved
+        /// Use 10-bit I2C addressing mode instead of 7-bit.
+        pub const TEN_BIT_ADDR: u8 = 1 << 3;
         // Bits 7..4 Sequence number (optional)
     }
 

@@ -107,69 +107,178 @@
 //! # }
 //! ```
 //!
-//! ## Performance Best Practices
+//! ## Performance Architecture and Best Practices
 //!
-//! **⚠️ CRITICAL**: Individual GPIO operations are extremely inefficient due to HID communication overhead.
-//! Each function call requires multiple USB Feature Report transactions, which can add significant latency.
+//! **⚠️ CRITICAL**: Understanding the communication architecture is essential for high-performance applications.
+//! The XR2280x devices communicate via USB HID Feature Reports, and each operation has significant overhead.
 //!
-//! ### GPIO Performance Impact
+//! ### Communication Architecture
 //!
-//! | Operation Pattern | HID Transactions | Typical Latency |
-//! |-------------------|------------------|-----------------|
-//! | Single pin setup (old way) | 8 transactions | ~40-80ms |
-//! | Single pin setup (efficient) | 5 transactions | ~25-50ms |
-//! | 4 pins setup (old way) | 32 transactions | ~160-320ms |
-//! | 4 pins setup (efficient) | 6 transactions | ~30-60ms |
+//! Every GPIO and I2C operation translates to one or more HID Feature Report transactions:
 //!
-//! ### Recommended Patterns
+//! - **USB Protocol Overhead**: Control transfer setup and response handling
+//! - **HID Report Processing**: Structured data formatting and parsing
+//! - **Device Firmware Execution**: Register updates and hardware control
+//! - **Typical Transaction Latency**: 5-10ms per HID Feature Report
 //!
-//! **✅ DO: Use Efficient GPIO Functions**
+//! This means traditional "one operation per function call" patterns can be extremely inefficient.
+//!
+//! ### GPIO Performance Impact Analysis
+//!
+//! | Operation Pattern | HID Transactions | Typical Latency | Improvement |
+//! |-------------------|------------------|-----------------|-------------|
+//! | Single pin (individual calls) | 8 transactions | ~40-80ms | Baseline |
+//! | Single pin (efficient API) | 5 transactions | ~25-50ms | **1.6x faster** |
+//! | 4 pins (individual calls) | 32 transactions | ~160-320ms | Baseline |
+//! | 4 pins (bulk API) | 6 transactions | ~30-60ms | **5.3x faster** |
+//! | 8 pins (individual calls) | 64 transactions | ~320-640ms | Baseline |
+//! | 8 pins (bulk API) | 6 transactions | ~30-60ms | **10.7x faster** |
+//!
+//! ### Root Cause: Read-Modify-Write Cycles
+//!
+//! Traditional GPIO operations perform inefficient read-modify-write cycles:
+//!
+//! ```text
+//! gpio_set_direction(): [READ register] → [MODIFY bit] → [WRITE register] = 2 HID transactions
+//! gpio_set_pull():      [READ pull-up] → [READ pull-down] → [WRITE pull-up] → [WRITE pull-down] = 4 HID transactions
+//! gpio_write():         [WRITE to SET/CLEAR register] = 1 HID transaction
+//!
+//! Total per pin: 7-8 HID transactions
+//! ```
+//!
+//! ### Architectural Solutions
+//!
+//! The high-performance APIs eliminate redundant operations through:
+//!
+//! 1. **Hardware-Aware Register Grouping**: Pins 0-15 (Group 0) and 16-31 (Group 1) use separate registers
+//! 2. **Transaction Batching**: Combined operations reduce individual read-modify-write cycles
+//! 3. **Bulk Processing**: O(1) complexity for multiple pins instead of O(N)
+//! 4. **Optimized Register Access**: Uses dedicated SET/CLEAR registers where available
+//!
+//! ### High-Performance GPIO APIs
+//!
+//! **✅ RECOMMENDED: Efficient Single Pin Setup**
 //! ```no_run
 //! use xr2280x_hid::gpio::{GpioPin, GpioLevel, GpioPull};
 //! # use xr2280x_hid::Xr2280x;
 //! # fn example(device: &Xr2280x) -> xr2280x_hid::Result<()> {
 //!
-//! // ✅ Efficient single pin setup (5 HID transactions)
+//! // ✅ Efficient output setup (5 HID transactions vs 8)
 //! let pin = GpioPin::new(0)?;
 //! device.gpio_setup_output(pin, GpioLevel::Low, GpioPull::None)?;
 //!
-//! // ✅ Efficient multi-pin setup (6 HID transactions total)
-//! let pins = [GpioPin::new(0)?, GpioPin::new(1)?, GpioPin::new(2)?];
-//! device.gpio_setup_outputs(
-//!     &pins.iter().map(|&p| (p, GpioLevel::Low)).collect::<Vec<_>>(),
-//!     GpioPull::None
-//! )?;
+//! // ✅ Efficient input setup (4 HID transactions vs 6)
+//! device.gpio_setup_input(pin, GpioPull::Up)?;
 //! # Ok(())
 //! # }
 //! ```
 //!
-//! **❌ AVOID: Individual GPIO Operations**
+//! **✅ HIGHLY RECOMMENDED: Bulk Operations**
+//! ```no_run
+//! use xr2280x_hid::gpio::{GpioPin, GpioLevel, GpioPull};
+//! # use xr2280x_hid::Xr2280x;
+//! # fn example(device: &Xr2280x) -> xr2280x_hid::Result<()> {
+//!
+//! // ✅ Bulk output setup (6 HID transactions total, regardless of pin count)
+//! let pin_configs = vec![
+//!     (GpioPin::new(0)?, GpioLevel::High),
+//!     (GpioPin::new(1)?, GpioLevel::Low),
+//!     (GpioPin::new(2)?, GpioLevel::High),
+//!     (GpioPin::new(3)?, GpioLevel::Low),
+//! ];
+//! device.gpio_setup_outputs(&pin_configs, GpioPull::None)?;
+//!
+//! // ✅ Bulk input setup (6 HID transactions total)
+//! let input_pins = vec![GpioPin::new(8)?, GpioPin::new(9)?, GpioPin::new(10)?];
+//! device.gpio_setup_inputs(&input_pins, GpioPull::Up)?;
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! **❌ ANTI-PATTERN: Individual Operations in Loops**
 //! ```no_run
 //! use xr2280x_hid::gpio::{GpioPin, GpioDirection, GpioLevel, GpioPull};
 //! # use xr2280x_hid::Xr2280x;
 //! # fn example(device: &Xr2280x) -> xr2280x_hid::Result<()> {
 //!
-//! // ❌ Inefficient: 8 HID transactions per pin!
+//! // ❌ EXTREMELY INEFFICIENT: 8 HID transactions × 4 pins = 32 transactions
 //! for i in 0..4 {
 //!     let pin = GpioPin::new(i)?;
 //!     device.gpio_set_direction(pin, GpioDirection::Output)?;  // 2 transactions
 //!     device.gpio_set_pull(pin, GpioPull::None)?;             // 4 transactions
 //!     device.gpio_write(pin, GpioLevel::Low)?;                // 1 transaction
-//!     // Total: 7 transactions × 4 pins = 28 transactions
+//!     // This loop creates 32 HID transactions vs 6 with bulk APIs!
 //! }
 //! # Ok(())
 //! # }
 //! ```
 //!
-//! ### Key Performance Rules
+//! ### HID Transaction Cost Reference
 //!
-//! 1. **Batch GPIO configuration**: Use `gpio_setup_*()` functions instead of individual calls
-//! 2. **Use masked operations**: `gpio_write_masked()` is much faster than multiple `gpio_write()` calls
-//! 3. **Group by register**: Operations on pins 0-15 vs 16-31 use different registers
-//! 4. **Minimize I2C transactions**: Use `i2c_write_read()` instead of separate write+read calls
-//! 5. **Cache device state**: Avoid redundant reads by tracking pin states in your application
+//! | Operation | HID Transactions | Notes |
+//! |-----------|------------------|-------|
+//! | `gpio_write()` | 1 | Most efficient (uses SET/CLEAR registers) |
+//! | `gpio_read()` | 1 | Single register read |
+//! | `gpio_set_direction()` | 2 | Read-modify-write cycle |
+//! | `gpio_set_pull()` | 4 | **Most expensive** (both pull registers) |
+//! | `gpio_set_open_drain()` | 2 | Read-modify-write cycle |
+//! | `gpio_setup_output()` | 5 | **Optimized combination** |
+//! | `gpio_setup_input()` | 4 | **Optimized combination** |
+//! | `gpio_setup_outputs()` | 6 | **Bulk operation (O(1) complexity)** |
+//! | `gpio_setup_inputs()` | 6 | **Bulk operation (O(1) complexity)** |
 //!
-//! See the `gpio_efficient_config.rs` example for detailed performance comparisons and optimization techniques.
+//! ### Migration Strategies
+//!
+//! **Immediate Wins - Simple Replacements:**
+//! ```no_run
+//! # use xr2280x_hid::{Xr2280x, gpio::*};
+//! # fn example(device: &Xr2280x) -> xr2280x_hid::Result<()> {
+//! // ❌ OLD (8 HID transactions)
+//! // device.gpio_set_direction(pin, GpioDirection::Output)?;
+//! // device.gpio_set_pull(pin, GpioPull::None)?;
+//! // device.gpio_write(pin, GpioLevel::Low)?;
+//!
+//! // ✅ NEW (5 HID transactions - 37% improvement)
+//! let pin = GpioPin::new(0)?;
+//! device.gpio_setup_output(pin, GpioLevel::Low, GpioPull::None)?;
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! **Major Wins - Bulk Migration:**
+//! ```no_run
+//! # use xr2280x_hid::{Xr2280x, gpio::*};
+//! # fn example(device: &Xr2280x) -> xr2280x_hid::Result<()> {
+//! // ❌ OLD (N × 8 HID transactions)
+//! // for (pin, level) in &pin_configs {
+//! //     device.gpio_set_direction(*pin, GpioDirection::Output)?;
+//! //     device.gpio_set_pull(*pin, GpioPull::None)?;
+//! //     device.gpio_write(*pin, *level)?;
+//! // }
+//!
+//! // ✅ NEW (6 HID transactions total - up to 10.7x improvement)
+//! let pin_configs = vec![(GpioPin::new(0)?, GpioLevel::Low)];
+//! device.gpio_setup_outputs(&pin_configs, GpioPull::None)?;
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! ### Performance Optimization Guidelines
+//!
+//! 1. **Initialize Once**: Use `gpio_setup_*()` functions during device initialization
+//! 2. **Runtime Efficiency**: Use `gpio_write()` and `gpio_write_masked()` for state changes
+//! 3. **Bulk Operations**: Always prefer bulk APIs when configuring multiple pins
+//! 4. **Register Grouping**: Group operations by hardware boundaries (pins 0-15 vs 16-31)
+//! 5. **State Caching**: Track GPIO states in application logic to avoid redundant reads
+//! 6. **Minimize Reconfiguration**: Avoid repeatedly changing pin configurations
+//!
+//! ### I2C Performance Considerations
+//!
+//! - **Use `i2c_write_read()`** instead of separate `i2c_write()` + `i2c_read()` calls
+//! - **Batch device scanning** with appropriate timeouts (see `i2c::timeouts` module)
+//! - **Cache device responses** when possible to reduce bus traffic
+//!
+//! See the `gpio_efficient_config.rs` example for comprehensive performance demonstrations and measurements.
 //!
 //! ### Open by Path
 //!

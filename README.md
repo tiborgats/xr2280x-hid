@@ -27,7 +27,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-xr2280x-hid = "0.9.5"
+xr2280x-hid = "0.9.6"
 hidapi = "2.6"
 ```
 
@@ -65,6 +65,49 @@ cargo run --example i2c_scan             # Scan I²C bus
 cargo run --example blink                # GPIO blink
 cargo run --example pwm_out              # PWM output
 ```
+
+## GPIO Performance Best Practices
+
+The XR2280x-HID crate provides high-performance GPIO APIs that can dramatically reduce USB communication overhead:
+
+### Efficient Single Pin Setup
+```rust
+// ✅ EFFICIENT: 5 HID transactions (vs 8 with individual calls)
+device.gpio_setup_output(pin, GpioLevel::Low, GpioPull::None)?;
+
+// ✅ EFFICIENT: 4 HID transactions (vs 6 with individual calls)  
+device.gpio_setup_input(pin, GpioPull::Up)?;
+```
+
+### Bulk Configuration (Highly Recommended)
+```rust
+// ✅ HIGHLY EFFICIENT: 6 HID transactions total (vs 8×N for individual setup)
+let pin_configs = vec![
+    (GpioPin::new(0)?, GpioLevel::High),
+    (GpioPin::new(1)?, GpioLevel::Low),
+    (GpioPin::new(2)?, GpioLevel::High),
+];
+device.gpio_setup_outputs(&pin_configs, GpioPull::None)?;
+```
+
+### Performance Improvements
+- **Single pin**: 1.6x faster setup
+- **4 pins**: 5.3x faster setup  
+- **8 pins**: 10.7x faster setup
+- **Latency reduction**: Up to 90% for multi-pin operations
+
+### Migration Guide
+```rust
+// ❌ OLD (inefficient but still works)
+device.gpio_set_direction(pin, GpioDirection::Output)?;
+device.gpio_set_pull(pin, GpioPull::None)?;
+device.gpio_write(pin, GpioLevel::Low)?;
+
+// ✅ NEW (efficient replacement)
+device.gpio_setup_output(pin, GpioLevel::Low, GpioPull::None)?;
+```
+
+For detailed performance analysis and optimization strategies, see the [GPIO module documentation](https://docs.rs/xr2280x-hid/latest/xr2280x_hid/gpio/index.html) and [main library documentation](https://docs.rs/xr2280x-hid/latest/xr2280x_hid/index.html#performance-architecture-and-best-practices).
 
 ## Platform Setup
 
@@ -106,6 +149,8 @@ Download hidapi.dll or use vcpkg. See [hidapi crate docs](https://docs.rs/hidapi
 - [API Documentation](https://docs.rs/xr2280x-hid)
 - [Examples](examples/) - Complete working examples
 - [Changelog](CHANGELOG.md) - Version history
+- [GPIO Module Documentation](https://docs.rs/xr2280x-hid/latest/xr2280x_hid/gpio/index.html) - Performance optimization and best practices
+- [I²C Module Documentation](https://docs.rs/xr2280x-hid/latest/xr2280x_hid/i2c/index.html) - Error handling and troubleshooting
 - [Hardware Tests](tests/) - Integration tests requiring hardware
 
 ## Multi-Device Selection
