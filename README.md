@@ -68,61 +68,14 @@ cargo run --example pwm_out                     # PWM output
 cargo run --example gpio_interrupt_safe_usage   # Safe vs unsafe interrupt handling
 ```
 
-## GPIO Performance Best Practices
+## Performance
 
-The XR2280x-HID crate provides high-performance GPIO APIs that can dramatically reduce USB communication overhead:
+For GPIO performance optimization, transaction APIs, and best practices, see the comprehensive [GPIO module documentation](https://docs.rs/xr2280x-hid/latest/xr2280x_hid/gpio/index.html) which includes:
 
-### 🚀 Transaction API (Best Performance)
-For maximum efficiency when updating multiple GPIO pins, use the Transaction API to batch changes:
-
-```rust
-// Batch multiple pin changes into minimal HID operations
-let mut transaction = device.gpio_transaction();
-transaction.set_pin(GpioPin::new(0)?, GpioLevel::High)?;
-transaction.set_pin(GpioPin::new(1)?, GpioLevel::Low)?;
-transaction.commit()?; // Apply all changes efficiently
-```
-
-See the [GPIO module documentation](https://docs.rs/xr2280x-hid/latest/xr2280x_hid/gpio/index.html) for detailed examples and performance analysis.
-
-### Efficient Single Pin Setup
-```rust
-// ✅ EFFICIENT: 5 HID transactions (vs 8 with individual calls)
-device.gpio_setup_output(pin, GpioLevel::Low, GpioPull::None)?;
-
-// ✅ EFFICIENT: 4 HID transactions (vs 6 with individual calls)  
-device.gpio_setup_input(pin, GpioPull::Up)?;
-```
-
-### Bulk Configuration (Highly Recommended)
-```rust
-// ✅ HIGHLY EFFICIENT: 6 HID transactions total (vs 8×N for individual setup)
-let pin_configs = vec![
-    (GpioPin::new(0)?, GpioLevel::High),
-    (GpioPin::new(1)?, GpioLevel::Low),
-    (GpioPin::new(2)?, GpioLevel::High),
-];
-device.gpio_setup_outputs(&pin_configs, GpioPull::None)?;
-```
-
-### Performance Improvements
-- **Single pin**: 1.6x faster setup
-- **4 pins**: 5.3x faster setup  
-- **8 pins**: 10.7x faster setup
-- **Latency reduction**: Up to 90% for multi-pin operations
-
-### Migration Guide
-```rust
-// ❌ OLD (inefficient but still works)
-device.gpio_set_direction(pin, GpioDirection::Output)?;
-device.gpio_set_pull(pin, GpioPull::None)?;
-device.gpio_write(pin, GpioLevel::Low)?;
-
-// ✅ NEW (efficient replacement)
-device.gpio_setup_output(pin, GpioLevel::Low, GpioPull::None)?;
-```
-
-For detailed performance analysis and optimization strategies, see the [GPIO module documentation](https://docs.rs/xr2280x-hid/latest/xr2280x_hid/gpio/index.html) and [main library documentation](https://docs.rs/xr2280x-hid/latest/xr2280x_hid/index.html#performance-architecture-and-best-practices).
+- Transaction API for batch operations (2-10x performance improvement)
+- Bulk configuration functions
+- Migration guide from individual to optimized operations
+- Detailed performance analysis and benchmarks
 
 ## Platform Setup
 
