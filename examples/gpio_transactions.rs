@@ -81,7 +81,8 @@ fn basic_transaction_demo(device: &Xr2280x, pins: &[GpioPin]) -> xr2280x_hid::Re
         hid_transactions
     );
 
-    // Reuse the same transaction object
+    // Create a new transaction for the next operations
+    let mut transaction = device.gpio_transaction();
     transaction.set_all_low(&pins[0..4])?;
     let hid_transactions = transaction.commit()?;
     println!(

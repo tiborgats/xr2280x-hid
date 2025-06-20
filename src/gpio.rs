@@ -118,7 +118,8 @@
 //! transaction.set_all_high(&[GpioPin::new(0)?, GpioPin::new(1)?])?;
 //! transaction.commit()?;
 //!
-//! // Reuse same transaction object
+//! // Create new transaction for next batch of changes
+//! let mut transaction = device.gpio_transaction();
 //! transaction.set_all_low(&[GpioPin::new(0)?, GpioPin::new(1)?])?;
 //! transaction.commit()?;
 //! # Ok(())
@@ -369,7 +370,8 @@ impl GpioPin {
 /// transaction.set_all_high(&[GpioPin::new(0)?, GpioPin::new(1)?])?;
 /// transaction.commit()?;
 ///
-/// // Transaction automatically clears after commit, ready for reuse
+/// // Create new transaction for second batch of changes
+/// let mut transaction = device.gpio_transaction();
 /// transaction.set_all_low(&[GpioPin::new(2)?, GpioPin::new(3)?])?;
 /// transaction.commit()?;
 /// # Ok(())
@@ -543,13 +545,13 @@ impl<'a> GpioTransaction<'a> {
     /// Commit all pending changes to the hardware.
     ///
     /// This applies all pin changes that have been set in this transaction
-    /// using efficient masked write operations. After commit, the transaction
-    /// is cleared and can be reused.
+    /// using efficient masked write operations. The transaction is consumed
+    /// by this method, preventing further modifications after commit.
     ///
     /// # Returns
     ///
     /// The number of HID transactions that were performed.
-    pub fn commit(&mut self) -> Result<usize> {
+    pub fn commit(self) -> Result<usize> {
         if !self.has_changes {
             return Ok(0);
         }
@@ -575,9 +577,6 @@ impl<'a> GpioTransaction<'a> {
             transaction_count += if set_mask_1 != 0 { 1 } else { 0 };
             transaction_count += if clear_mask_1 != 0 { 1 } else { 0 };
         }
-
-        // Clear the transaction for reuse
-        self.clear();
 
         debug!(
             "GPIO transaction committed with {} HID transactions",

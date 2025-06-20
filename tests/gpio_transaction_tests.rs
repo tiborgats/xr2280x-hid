@@ -105,7 +105,7 @@ impl MockTransaction {
         (group0_count + group1_count) as usize
     }
 
-    fn commit(&mut self) -> usize {
+    fn commit(self) -> usize {
         if !self.has_changes {
             return 0;
         }
@@ -130,7 +130,6 @@ impl MockTransaction {
             transaction_count += 1;
         }
 
-        self.clear();
         transaction_count
     }
 }
@@ -255,21 +254,20 @@ mod tests {
     #[test]
     fn test_commit_behavior() {
         let pins = create_test_pins();
-        let mut transaction = MockTransaction::new();
 
         // Empty transaction commit
+        let transaction = MockTransaction::new();
         assert_eq!(transaction.commit(), 0);
-        assert!(!transaction.has_pending_changes());
 
         // Single group, both set and clear
+        let mut transaction = MockTransaction::new();
         transaction.set_high(pins[0]).unwrap();
         transaction.set_low(pins[1]).unwrap();
         let hid_count = transaction.commit();
         assert_eq!(hid_count, 2); // One SET, one CLEAR transaction
-        assert!(!transaction.has_pending_changes());
-        assert_eq!(transaction.pending_pin_count(), 0);
 
         // Multi-group transaction
+        let mut transaction = MockTransaction::new();
         transaction.set_high(pins[0]).unwrap(); // Group 0
         transaction.set_high(pins[3]).unwrap(); // Group 1
         let hid_count = transaction.commit();
@@ -298,22 +296,22 @@ mod tests {
     #[test]
     fn test_transaction_reuse() {
         let pins = create_test_pins();
-        let mut transaction = MockTransaction::new();
 
-        // First use
+        // First transaction
+        let mut transaction = MockTransaction::new();
         transaction.set_high(pins[0]).unwrap();
+        assert!(transaction.has_pending_changes());
         let hid_count = transaction.commit();
         assert_eq!(hid_count, 1);
-        assert!(!transaction.has_pending_changes());
 
-        // Reuse the same transaction
+        // Create new transaction for second batch of operations
+        let mut transaction = MockTransaction::new();
         transaction.set_low(pins[1]).unwrap();
         assert!(transaction.has_pending_changes());
         assert_eq!(transaction.pending_pin_count(), 1);
 
         let hid_count = transaction.commit();
         assert_eq!(hid_count, 1);
-        assert!(!transaction.has_pending_changes());
     }
 
     #[test]
