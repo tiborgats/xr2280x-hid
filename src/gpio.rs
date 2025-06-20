@@ -310,6 +310,53 @@ impl GpioPin {
     }
 }
 
+/// Internal structure to track GPIO changes for a single group.
+#[derive(Debug, Clone, Copy, Default)]
+struct GpioChangeMask {
+    /// Mask of pins to set high (1 bits)
+    set_mask: u16,
+    /// Mask of pins to set low (1 bits)
+    clear_mask: u16,
+}
+
+impl GpioChangeMask {
+    /// Create a new empty change mask
+    fn new() -> Self {
+        Self {
+            set_mask: 0,
+            clear_mask: 0,
+        }
+    }
+
+    /// Check if this change mask has any pending changes
+    fn has_changes(&self) -> bool {
+        self.set_mask != 0 || self.clear_mask != 0
+    }
+
+    /// Get the total number of pins affected by this change mask
+    fn pin_count(&self) -> u32 {
+        (self.set_mask | self.clear_mask).count_ones()
+    }
+
+    /// Clear all changes in this mask
+    fn clear(&mut self) {
+        self.set_mask = 0;
+        self.clear_mask = 0;
+    }
+
+    /// Set a pin to high level in this change mask
+    fn set_high(&mut self, mask: u16) {
+        self.set_mask |= mask;
+        self.clear_mask &= !mask; // Remove from clear if it was there
+    }
+
+    /// Set a pin to low level in this change mask
+    fn set_low(&mut self, mask: u16) {
+        self.clear_mask |= mask;
+        self.set_mask &= !mask; // Remove from set if it was there
+    }
+}
+
 /// A transaction for batching GPIO operations efficiently.
 ///
 /// This allows multiple GPIO pin changes to be accumulated in memory
@@ -415,12 +462,13 @@ impl GpioPin {
 /// - Use convenience methods like [`set_high()`](Self::set_high) and [`set_low()`](Self::set_low)
 /// - Check [`pending_pin_count()`](Self::pending_pin_count) for debugging
 /// - The transaction will log a warning if dropped without committing
+
 #[derive(Debug)]
 pub struct GpioTransaction<'a> {
     device: &'a Xr2280x,
-    // Track changes per group - (set_mask, clear_mask)
-    group0_changes: (u16, u16),
-    group1_changes: (u16, u16),
+    // Track changes per group
+    group0_changes: GpioChangeMask,
+    group1_changes: GpioChangeMask,
     has_changes: bool,
 }
 
@@ -429,8 +477,8 @@ impl<'a> GpioTransaction<'a> {
     pub(crate) fn new(device: &'a Xr2280x) -> Self {
         Self {
             device,
-            group0_changes: (0, 0),
-            group1_changes: (0, 0),
+            group0_changes: GpioChangeMask::new(),
+            group1_changes: GpioChangeMask::new(),
             has_changes: false,
         }
     }
@@ -443,20 +491,14 @@ impl<'a> GpioTransaction<'a> {
         self.device.check_gpio_pin_support(pin)?;
 
         let mask = pin.mask();
-        let (set_mask, clear_mask) = match pin.group_index() {
+        let change_mask = match pin.group_index() {
             0 => &mut self.group0_changes,
             _ => &mut self.group1_changes,
         };
 
         match level {
-            GpioLevel::High => {
-                *set_mask |= mask;
-                *clear_mask &= !mask; // Remove from clear if it was there
-            }
-            GpioLevel::Low => {
-                *clear_mask |= mask;
-                *set_mask &= !mask; // Remove from set if it was there
-            }
+            GpioLevel::High => change_mask.set_high(mask),
+            GpioLevel::Low => change_mask.set_low(mask),
         }
 
         self.has_changes = true;
@@ -535,8 +577,8 @@ impl<'a> GpioTransaction<'a> {
 
     /// Clear all pending changes in this transaction.
     pub fn clear(&mut self) {
-        self.group0_changes = (0, 0);
-        self.group1_changes = (0, 0);
+        self.group0_changes.clear();
+        self.group1_changes.clear();
         self.has_changes = false;
     }
 
@@ -547,8 +589,8 @@ impl<'a> GpioTransaction<'a> {
 
     /// Get the number of pins that will be affected by this transaction.
     pub fn pending_pin_count(&self) -> usize {
-        let group0_count = (self.group0_changes.0 | self.group0_changes.1).count_ones();
-        let group1_count = (self.group1_changes.0 | self.group1_changes.1).count_ones();
+        let group0_count = self.group0_changes.pin_count();
+        let group1_count = self.group1_changes.pin_count();
         (group0_count + group1_count) as usize
     }
 
@@ -569,23 +611,43 @@ impl<'a> GpioTransaction<'a> {
         let mut transaction_count = 0;
 
         // Apply Group 0 changes
-        let (set_mask_0, clear_mask_0) = self.group0_changes;
-        if set_mask_0 != 0 || clear_mask_0 != 0 {
-            let total_mask = set_mask_0 | clear_mask_0;
-            self.device
-                .gpio_write_masked(GpioGroup::Group0, total_mask, set_mask_0)?;
-            transaction_count += if set_mask_0 != 0 { 1 } else { 0 };
-            transaction_count += if clear_mask_0 != 0 { 1 } else { 0 };
+        if self.group0_changes.has_changes() {
+            let total_mask = self.group0_changes.set_mask | self.group0_changes.clear_mask;
+            self.device.gpio_write_masked(
+                GpioGroup::Group0,
+                total_mask,
+                self.group0_changes.set_mask,
+            )?;
+            transaction_count += if self.group0_changes.set_mask != 0 {
+                1
+            } else {
+                0
+            };
+            transaction_count += if self.group0_changes.clear_mask != 0 {
+                1
+            } else {
+                0
+            };
         }
 
         // Apply Group 1 changes
-        let (set_mask_1, clear_mask_1) = self.group1_changes;
-        if set_mask_1 != 0 || clear_mask_1 != 0 {
-            let total_mask = set_mask_1 | clear_mask_1;
-            self.device
-                .gpio_write_masked(GpioGroup::Group1, total_mask, set_mask_1)?;
-            transaction_count += if set_mask_1 != 0 { 1 } else { 0 };
-            transaction_count += if clear_mask_1 != 0 { 1 } else { 0 };
+        if self.group1_changes.has_changes() {
+            let total_mask = self.group1_changes.set_mask | self.group1_changes.clear_mask;
+            self.device.gpio_write_masked(
+                GpioGroup::Group1,
+                total_mask,
+                self.group1_changes.set_mask,
+            )?;
+            transaction_count += if self.group1_changes.set_mask != 0 {
+                1
+            } else {
+                0
+            };
+            transaction_count += if self.group1_changes.clear_mask != 0 {
+                1
+            } else {
+                0
+            };
         }
 
         debug!(
