@@ -63,6 +63,7 @@ Run examples to see various features in action:
 cargo run --example enumerate_hardware          # List connected devices
 cargo run --example i2c_scan                    # Scan I²C bus
 cargo run --example blink                       # GPIO blink
+cargo run --example gpio_transactions           # Efficient batch GPIO operations
 cargo run --example pwm_out                     # PWM output
 cargo run --example gpio_interrupt_safe_usage   # Safe vs unsafe interrupt handling
 ```
@@ -70,6 +71,19 @@ cargo run --example gpio_interrupt_safe_usage   # Safe vs unsafe interrupt handl
 ## GPIO Performance Best Practices
 
 The XR2280x-HID crate provides high-performance GPIO APIs that can dramatically reduce USB communication overhead:
+
+### 🚀 Transaction API (Best Performance)
+For maximum efficiency when updating multiple GPIO pins, use the Transaction API to batch changes:
+
+```rust
+// Batch multiple pin changes into minimal HID operations
+let mut transaction = device.gpio_transaction();
+transaction.set_pin(GpioPin::new(0)?, GpioLevel::High)?;
+transaction.set_pin(GpioPin::new(1)?, GpioLevel::Low)?;
+transaction.commit()?; // Apply all changes efficiently
+```
+
+See the [GPIO module documentation](https://docs.rs/xr2280x-hid/latest/xr2280x_hid/gpio/index.html) for detailed examples and performance analysis.
 
 ### Efficient Single Pin Setup
 ```rust

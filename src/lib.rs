@@ -757,7 +757,7 @@ pub use device::{
     device_find_first,
 };
 pub use error::{Error, Result};
-pub use gpio::{GpioDirection, GpioGroup, GpioLevel, GpioPin, GpioPull};
+pub use gpio::{GpioDirection, GpioGroup, GpioLevel, GpioPin, GpioPull, GpioTransaction};
 pub use i2c::{I2cAddress, timeouts};
 pub use interrupt::{GpioInterruptReport, ParsedGpioInterruptReport};
 pub use pwm::{PwmChannel, PwmCommand};
