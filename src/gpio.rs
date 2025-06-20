@@ -316,6 +316,16 @@ impl GpioPin {
 /// and then committed as a single set of hardware operations, dramatically
 /// reducing HID communication overhead.
 ///
+/// # How It Works
+///
+/// 1. **Transaction Creation**: Lightweight initialization with no device communication
+/// 2. **Change Accumulation**: Pin modifications are stored as SET and CLEAR masks per GPIO group
+/// 3. **Atomic Commit**: Uses hardware's dedicated SET/CLEAR registers for simultaneous updates
+/// 4. **No Read Required**: Avoids read-modify-write cycles entirely for maximum efficiency
+///
+/// This design ensures that all pin changes within a transaction are applied atomically
+/// and efficiently, regardless of how many pins are modified.
+///
 /// # Performance Benefits
 ///
 /// - **2-10x faster** than individual GPIO operations for multi-pin changes
@@ -605,6 +615,14 @@ impl Xr2280x {
     /// Transactions allow multiple GPIO pin changes to be batched together
     /// and committed as a single set of hardware operations, dramatically
     /// reducing HID communication overhead.
+    ///
+    /// ## Operation Cycle
+    ///
+    /// Creating a transaction is lightweight and performs no device communication.
+    /// Pin changes are accumulated in memory as SET and CLEAR masks for each GPIO group.
+    /// When [`commit()`](GpioTransaction::commit) is called, the transaction uses the
+    /// hardware's atomic SET and CLEAR registers to apply all changes simultaneously,
+    /// eliminating the need for read-modify-write cycles and ensuring atomic updates.
     ///
     /// # Example
     ///
