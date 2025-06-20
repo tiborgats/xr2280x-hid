@@ -7,6 +7,35 @@ use log::{debug, trace, warn};
 use std::collections::HashMap;
 use std::ffi::CStr;
 
+// HID Report Structure Constants - Register Communication
+// These constants define the structure of HID register reports to eliminate magic numbers
+
+/// HID Write Register Report Structure
+#[allow(dead_code)]
+mod write_register_offsets {
+    /// Report ID for write register commands
+    pub const REPORT_ID: usize = 0;
+    /// Register address low byte offset
+    pub const ADDR_LOW: usize = 1;
+    /// Register address high byte offset
+    pub const ADDR_HIGH: usize = 2;
+    /// Register value low byte offset
+    pub const VALUE_LOW: usize = 3;
+    /// Register value high byte offset
+    pub const VALUE_HIGH: usize = 4;
+}
+
+/// HID Read Register Report Structure
+#[allow(dead_code)]
+mod read_register_offsets {
+    /// Report ID for read register commands
+    pub const REPORT_ID: usize = 0;
+    /// Register value low byte offset
+    pub const VALUE_LOW: usize = 1;
+    /// Register value high byte offset
+    pub const VALUE_HIGH: usize = 2;
+}
+
 /// Information about a discovered XR2280x device.
 ///
 /// This struct represents a complete device that may expose multiple
@@ -548,13 +577,12 @@ impl Xr2280x {
             self.edge_device.as_ref().ok_or(Error::DeviceNotFound)?
         };
 
-        let buf: [u8; 5] = [
-            consts::REPORT_ID_WRITE_HID_REGISTER,
-            (reg_addr & 0xFF) as u8,
-            ((reg_addr >> 8) & 0xFF) as u8,
-            (value & 0xFF) as u8,
-            ((value >> 8) & 0xFF) as u8,
-        ];
+        let mut buf = [0u8; 5];
+        buf[write_register_offsets::REPORT_ID] = consts::REPORT_ID_WRITE_HID_REGISTER;
+        buf[write_register_offsets::ADDR_LOW] = (reg_addr & 0xFF) as u8;
+        buf[write_register_offsets::ADDR_HIGH] = ((reg_addr >> 8) & 0xFF) as u8;
+        buf[write_register_offsets::VALUE_LOW] = (value & 0xFF) as u8;
+        buf[write_register_offsets::VALUE_HIGH] = ((value >> 8) & 0xFF) as u8;
         trace!(
             "Writing Feature Report (Write Reg {:04X} = {:04X}): {:02X?}",
             reg_addr,
@@ -618,18 +646,24 @@ impl Xr2280x {
         };
 
         let mut buf = [0u8; 3];
-        buf[0] = consts::REPORT_ID_READ_HID_REGISTER;
+        buf[read_register_offsets::REPORT_ID] = consts::REPORT_ID_READ_HID_REGISTER;
         trace!("Reading Feature Report (Read Reg Addr {:04X})", reg_addr);
         match device.get_feature_report(&mut buf) {
             Ok(len) if len == buf.len() => {
-                if buf[0] != consts::REPORT_ID_READ_HID_REGISTER {
+                if buf[read_register_offsets::REPORT_ID] != consts::REPORT_ID_READ_HID_REGISTER {
                     warn!(
                         "get_feature_report returned unexpected report ID: {:02X} for register 0x{:04X}",
-                        buf[0], reg_addr
+                        buf[read_register_offsets::REPORT_ID],
+                        reg_addr
                     );
-                    return Err(Error::InvalidReport(buf[0] as usize));
+                    return Err(Error::InvalidReport(
+                        buf[read_register_offsets::REPORT_ID] as usize,
+                    ));
                 }
-                let value = u16::from_le_bytes([buf[1], buf[2]]);
+                let value = u16::from_le_bytes([
+                    buf[read_register_offsets::VALUE_LOW],
+                    buf[read_register_offsets::VALUE_HIGH],
+                ]);
                 trace!("Read Reg 0x{:04X} = 0x{:04X}", reg_addr, value);
                 Ok(value)
             }

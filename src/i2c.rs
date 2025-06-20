@@ -115,6 +115,41 @@ use crate::device::Xr2280x;
 use crate::error::{Error, Result};
 use crate::flags;
 use log::{debug, trace, warn};
+
+// HID Report Structure Constants - I2C Communication
+// These constants define the structure of I2C HID reports to eliminate magic numbers
+
+/// I2C Request Report Structure (Outgoing)
+#[allow(dead_code)]
+mod request_offsets {
+    /// Offset for I2C transaction flags in outgoing HID report
+    pub const FLAGS: usize = 0;
+    /// Offset for write data length in outgoing HID report
+    pub const WRITE_LENGTH: usize = 1;
+    /// Offset for read data length in outgoing HID report
+    pub const READ_LENGTH: usize = 2;
+    /// Offset for I2C slave address in outgoing HID report
+    pub const SLAVE_ADDRESS: usize = 3;
+    /// Offset where write data begins in outgoing HID report
+    pub const WRITE_DATA_START: usize = 4;
+    /// Offset for 10-bit address low byte when used
+    pub const ADDR_10BIT_LOW: usize = 4;
+    /// Offset where 10-bit write data starts (after address low byte)
+    pub const WRITE_DATA_10BIT_START: usize = 5;
+}
+
+/// I2C Response Report Structure (Incoming)
+#[allow(dead_code)]
+mod response_offsets {
+    /// Minimum expected response size (Report ID + Status + Reserved + Read Length + Reserved)
+    pub const MIN_RESPONSE_SIZE: usize = 5;
+    /// Offset for status flags in incoming HID report
+    pub const STATUS_FLAGS: usize = 1;
+    /// Offset for actual read data length in incoming HID report
+    pub const READ_LENGTH: usize = 3;
+    /// Offset where read data begins in incoming HID report
+    pub const READ_DATA_START: usize = 5;
+}
 use std::fmt;
 use std::time::Instant;
 
@@ -900,35 +935,39 @@ impl Xr2280x {
             final_flags |= consts::i2c::out_flags::TEN_BIT_ADDR;
         }
 
-        out_buf[0] = final_flags;
-        out_buf[1] = write_len as u8;
-        out_buf[2] = read_len as u8;
+        out_buf[request_offsets::FLAGS] = final_flags;
+        out_buf[request_offsets::WRITE_LENGTH] = write_len as u8;
+        out_buf[request_offsets::READ_LENGTH] = read_len as u8;
 
         // Set slave address based on type
         match slave_addr {
             // For 7-bit addresses, shift left by 1 to create the 8-bit wire format
             // The I2C protocol requires the 7-bit address in bits 7:1, with bit 0 reserved for R/W
-            I2cAddress::Bit7(addr) => out_buf[3] = addr << 1,
+            I2cAddress::Bit7(addr) => out_buf[request_offsets::SLAVE_ADDRESS] = addr << 1,
             I2cAddress::Bit10(addr) => {
                 // For 10-bit, use special encoding per datasheet
                 // High byte in [3], low byte in first data position [4]
-                out_buf[3] = (((addr >> 8) & 0x03) << 1) as u8 | 0xF0; // 11110xx0 pattern
+                out_buf[request_offsets::SLAVE_ADDRESS] = (((addr >> 8) & 0x03) << 1) as u8 | 0xF0; // 11110xx0 pattern
                 if write_len > 0 {
                     // If writing data, shift it and insert low addr byte
-                    out_buf[5..5 + write_len].copy_from_slice(write_data);
-                    out_buf[4] = (addr & 0xFF) as u8;
-                    out_buf[1] = (write_len + 1) as u8; // Increase write size
+                    out_buf[request_offsets::WRITE_DATA_10BIT_START
+                        ..request_offsets::WRITE_DATA_10BIT_START + write_len]
+                        .copy_from_slice(write_data);
+                    out_buf[request_offsets::ADDR_10BIT_LOW] = (addr & 0xFF) as u8;
+                    out_buf[request_offsets::WRITE_LENGTH] = (write_len + 1) as u8; // Increase write size
                 } else {
                     // Read-only, low byte goes in data[0]
-                    out_buf[4] = (addr & 0xFF) as u8;
-                    out_buf[1] = 1; // Write size = 1 for address
+                    out_buf[request_offsets::ADDR_10BIT_LOW] = (addr & 0xFF) as u8;
+                    out_buf[request_offsets::WRITE_LENGTH] = 1; // Write size = 1 for address
                 }
             }
         }
 
         // Copy write data for 7-bit addresses
         if matches!(slave_addr, I2cAddress::Bit7(_)) && write_len > 0 {
-            out_buf[4..4 + write_len].copy_from_slice(write_data);
+            out_buf
+                [request_offsets::WRITE_DATA_START..request_offsets::WRITE_DATA_START + write_len]
+                .copy_from_slice(write_data);
         }
 
         debug!(
@@ -959,12 +998,12 @@ impl Xr2280x {
             &in_buf[..received]
         );
 
-        if received < 5 {
+        if received < response_offsets::MIN_RESPONSE_SIZE {
             return Err(Error::InvalidReport(received));
         }
 
         // Check status flags
-        let status_flags = in_buf[1];
+        let status_flags = in_buf[response_offsets::STATUS_FLAGS];
         if status_flags & consts::i2c::in_flags::REQUEST_ERROR != 0 {
             return Err(Error::I2cRequestError {
                 address: slave_addr,
@@ -995,7 +1034,7 @@ impl Xr2280x {
 
         // Extract read data only if reading was requested
         if read_len > 0 {
-            let reported_read_len = in_buf[3] as usize;
+            let reported_read_len = in_buf[response_offsets::READ_LENGTH] as usize;
             if reported_read_len != read_len {
                 warn!(
                     "I2C read length mismatch: expected {}, got {}",
@@ -1004,10 +1043,13 @@ impl Xr2280x {
             }
             let actual_read_len = reported_read_len
                 .min(read_len)
-                .min(received.saturating_sub(5));
+                .min(received.saturating_sub(response_offsets::READ_DATA_START));
 
             if let Some(read_buf) = read_buffer {
-                read_buf[..actual_read_len].copy_from_slice(&in_buf[5..5 + actual_read_len]);
+                read_buf[..actual_read_len].copy_from_slice(
+                    &in_buf[response_offsets::READ_DATA_START
+                        ..response_offsets::READ_DATA_START + actual_read_len],
+                );
             }
         }
 

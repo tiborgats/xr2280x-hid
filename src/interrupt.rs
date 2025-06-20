@@ -9,6 +9,45 @@ use log::{debug, trace, warn};
 /// Default timeout for interrupt reads in milliseconds.
 const DEFAULT_INTERRUPT_TIMEOUT_MS: i32 = 1000;
 
+// HID Report Structure Constants - GPIO Interrupt Parsing
+// These constants define the structure of GPIO interrupt HID reports to eliminate magic numbers
+
+/// GPIO Interrupt Report Structure Constants
+#[allow(dead_code)]
+mod report_offsets {
+    /// HID Report ID is always at offset 0 (added by hidapi)
+    pub const REPORT_ID: usize = 0;
+
+    /// Minimum expected report size (Report ID + Group0 State + Group1 State)
+    pub const MIN_REPORT_SIZE: usize = 5;
+
+    /// Minimum report size including trigger mask data
+    pub const MIN_REPORT_WITH_TRIGGERS: usize = 9;
+
+    /// GPIO Group 0 (pins 0-15) state - Low byte offset
+    pub const GROUP0_STATE_LOW: usize = 1;
+    /// GPIO Group 0 (pins 0-15) state - High byte offset
+    pub const GROUP0_STATE_HIGH: usize = 2;
+
+    /// GPIO Group 1 (pins 16-31) state - Low byte offset
+    pub const GROUP1_STATE_LOW: usize = 3;
+    /// GPIO Group 1 (pins 16-31) state - High byte offset
+    pub const GROUP1_STATE_HIGH: usize = 4;
+
+    /// GPIO Group 0 (pins 0-15) trigger mask - Low byte offset
+    pub const GROUP0_TRIGGER_LOW: usize = 5;
+    /// GPIO Group 0 (pins 0-15) trigger mask - High byte offset
+    pub const GROUP0_TRIGGER_HIGH: usize = 6;
+
+    /// GPIO Group 1 (pins 16-31) trigger mask - Low byte offset
+    pub const GROUP1_TRIGGER_LOW: usize = 7;
+    /// GPIO Group 1 (pins 16-31) trigger mask - High byte offset
+    pub const GROUP1_TRIGGER_HIGH: usize = 8;
+
+    /// Offset where actual hardware data starts (skipping HID Report ID)
+    pub const HARDWARE_DATA_START: usize = 1;
+}
+
 /// Raw GPIO interrupt report data received from XR2280x EDGE interface.
 ///
 /// This structure contains the unprocessed binary data from a GPIO interrupt report.
@@ -281,11 +320,12 @@ impl Xr2280x {
             ));
         }
 
-        if report.raw_data.len() < 5 {
+        if report.raw_data.len() < report_offsets::MIN_REPORT_SIZE {
             return Err(Error::InterruptParseError(format!(
-                "Interrupt report too small: got {} bytes, need at least 5 bytes (Report ID + 4 state bytes). \
+                "Interrupt report too small: got {} bytes, need at least {} bytes (Report ID + 4 state bytes). \
                     This may indicate an incompatible hardware report format.",
-                report.raw_data.len()
+                report.raw_data.len(),
+                report_offsets::MIN_REPORT_SIZE
             )));
         }
 
@@ -299,23 +339,38 @@ impl Xr2280x {
 
         // UNSAFE ASSUMPTION: First 4 bytes after Report ID are GPIO states (2 bytes per group)
         // WARNING: This assumption is NOT verified against hardware documentation
-        let current_state_group0 = u16::from_le_bytes([report.raw_data[1], report.raw_data[2]]);
-        let current_state_group1 = u16::from_le_bytes([report.raw_data[3], report.raw_data[4]]);
+        let current_state_group0 = u16::from_le_bytes([
+            report.raw_data[report_offsets::GROUP0_STATE_LOW],
+            report.raw_data[report_offsets::GROUP0_STATE_HIGH],
+        ]);
+        let current_state_group1 = u16::from_le_bytes([
+            report.raw_data[report_offsets::GROUP1_STATE_LOW],
+            report.raw_data[report_offsets::GROUP1_STATE_HIGH],
+        ]);
 
         // UNSAFE ASSUMPTION: Additional bytes might contain trigger masks
         // WARNING: This is pure speculation based on common patterns
-        let (trigger_mask_group0, trigger_mask_group1) = if report.raw_data.len() >= 9 {
+        let (trigger_mask_group0, trigger_mask_group1) = if report.raw_data.len()
+            >= report_offsets::MIN_REPORT_WITH_TRIGGERS
+        {
             // Additional bounds checking for trigger mask data
-            if report.raw_data.len() < 9 {
+            if report.raw_data.len() < report_offsets::MIN_REPORT_WITH_TRIGGERS {
                 return Err(Error::InterruptParseError(format!(
-                    "Interrupt report claims trigger data but insufficient bytes: got {} bytes, need 9",
-                    report.raw_data.len()
+                    "Interrupt report claims trigger data but insufficient bytes: got {} bytes, need {}",
+                    report.raw_data.len(),
+                    report_offsets::MIN_REPORT_WITH_TRIGGERS
                 )));
             }
 
             (
-                u16::from_le_bytes([report.raw_data[5], report.raw_data[6]]),
-                u16::from_le_bytes([report.raw_data[7], report.raw_data[8]]),
+                u16::from_le_bytes([
+                    report.raw_data[report_offsets::GROUP0_TRIGGER_LOW],
+                    report.raw_data[report_offsets::GROUP0_TRIGGER_HIGH],
+                ]),
+                u16::from_le_bytes([
+                    report.raw_data[report_offsets::GROUP1_TRIGGER_LOW],
+                    report.raw_data[report_offsets::GROUP1_TRIGGER_HIGH],
+                ]),
             )
         } else {
             warn!(
@@ -395,7 +450,7 @@ impl Xr2280x {
             &[]
         } else {
             // Skip the HID Report ID at index 0, return actual hardware data
-            &report.raw_data[1..]
+            &report.raw_data[report_offsets::HARDWARE_DATA_START..]
         }
     }
 
