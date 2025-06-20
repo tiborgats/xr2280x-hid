@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.8] - 2025-06-20
+
+### Fixed
+- **CRITICAL: I2C Scanning False Positives - Correct Fix**: Fixed I2C scanner reporting devices at every address due to incorrect HID response parsing offsets
+  - **Root Cause**: The v0.9.6 "HID Report Parsing Off-By-One" fix was incorrect - it assumed hidapi adds a Report ID byte, but status flags are actually at index 0, not index 1
+  - **Impact**: `i2c_scan()` was reading status flags from wrong offset, causing all NACK responses to be treated as success, reporting devices at every address
+  - **Diagnostic Evidence**: Trace logs showed `in_buf[0]=0x02` (NAK_RECEIVED flag) but code was reading from `in_buf[1]=0x00`
+  - **Solution**: Corrected `response_offsets` constants to read status flags from index 0 instead of index 1
+  - **Technical Details**:
+    - Before: `STATUS_FLAGS: usize = 1` (incorrect, reading 0x00)
+    - After: `STATUS_FLAGS: usize = 0` (correct, reading 0x02 for NACK)
+    - Also corrected `READ_LENGTH` and `READ_DATA_START` offsets accordingly
+  - **Result**: I2C scanning now correctly identifies only addresses with actual responding devices (e.g., 2 devices instead of 112)
+  - **Verification**: Confirmed with hardware testing showing proper NACK detection and accurate device discovery
+
 ## [0.9.7] - 2025-01-28
 
 ### Fixed

@@ -141,14 +141,14 @@ mod request_offsets {
 /// I2C Response Report Structure (Incoming)
 #[allow(dead_code)]
 mod response_offsets {
-    /// Minimum expected response size (Report ID + Status + Reserved + Read Length + Reserved)
-    pub const MIN_RESPONSE_SIZE: usize = 5;
+    /// Minimum expected response size (Status + Reserved + Read Length + Reserved + Data)
+    pub const MIN_RESPONSE_SIZE: usize = 4;
     /// Offset for status flags in incoming HID report
-    pub const STATUS_FLAGS: usize = 1;
+    pub const STATUS_FLAGS: usize = 0;
     /// Offset for actual read data length in incoming HID report
-    pub const READ_LENGTH: usize = 3;
+    pub const READ_LENGTH: usize = 2;
     /// Offset where read data begins in incoming HID report
-    pub const READ_DATA_START: usize = 5;
+    pub const READ_DATA_START: usize = 4;
 }
 use std::fmt;
 use std::time::Instant;
