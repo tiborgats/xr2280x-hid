@@ -998,6 +998,15 @@ impl Xr2280x {
             &in_buf[..received]
         );
 
+        if received == 0 {
+            // The device did not send a response report within the timeout.
+            // This typically happens when the XR2280x gets a NACK and fails to send back
+            // an I2C_SLAVE_IN report due to a firmware quirk.
+            return Err(Error::I2cTimeout {
+                address: slave_addr,
+            });
+        }
+
         if received < response_offsets::MIN_RESPONSE_SIZE {
             return Err(Error::InvalidReport(received));
         }

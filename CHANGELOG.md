@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.7] - 2025-01-28
+
+### Fixed
+- **CRITICAL: I2C Scanning False Positives**: Fixed I2C scanner reporting devices at every address due to firmware quirk handling
+  - **Root Cause**: When XR2280x firmware fails to send response reports during NACK conditions, `read_timeout()` returns `Ok(0)` but code treated this as success
+  - **Impact**: `i2c_scan()` incorrectly reported devices present at all addresses, making I2C device discovery completely unreliable
+  - **Solution**: Added explicit check for zero bytes read case, properly converting silent firmware responses to `Error::I2cTimeout`
+  - **Result**: I2C scanning now correctly identifies only addresses with actual responding devices
+
 ## [0.9.6] - 2025-01-28
 
 ### Fixed
