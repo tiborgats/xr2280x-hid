@@ -24,7 +24,7 @@ use hidapi::HidApi;
 use log::{debug, error, info, warn};
 
 use xr2280x_hid::{
-    Error, GpioInterruptReport, GpioLevel, GpioPin, ParsedGpioInterruptReport, Xr2280x,
+    Error, GpioEdge, GpioInterruptReport, GpioLevel, GpioPin, ParsedGpioInterruptReport, Xr2280x,
 };
 
 /// Tracks GPIO pin state history for validation purposes
@@ -166,6 +166,11 @@ fn monitor_interrupts_safely(
 
             // APPROACH 2: UNSAFE - Speculative parsing with validation
             handle_interrupt_unsafely(device, &raw_report, pin_history)?;
+
+            info!("");
+
+            // APPROACH 3: NEW - Consistent Pin API with type safety
+            handle_interrupt_with_consistent_api(device, &raw_report)?;
 
             info!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
 
@@ -374,6 +379,81 @@ fn check_interrupt_data_sanity(parsed: &ParsedGpioInterruptReport) -> xr2280x_hi
         }
     } else {
         info!("✅ Basic sanity checks passed");
+    }
+
+    Ok(())
+}
+
+/// **NEW**: Demonstrate improved consistent Pin API for interrupt handling.
+///
+/// This function showcases the new `parse_gpio_interrupt_pins()` function that provides
+/// a more ergonomic and type-safe API by returning individual `(GpioPin, GpioEdge)`
+/// combinations instead of raw group masks.
+fn handle_interrupt_with_consistent_api(
+    device: &Xr2280x,
+    raw_report: &GpioInterruptReport,
+) -> xr2280x_hid::Result<()> {
+    info!("🚀 NEW API: Parsing interrupt with consistent Pin types...");
+
+    // NEW: Get individual pin/edge combinations with type safety
+    match device.parse_gpio_interrupt_pins(raw_report) {
+        Ok(pin_events) => {
+            if !pin_events.is_empty() {
+                info!(
+                    "✨ IMPROVED API: Received {} GPIO interrupt events:",
+                    pin_events.len()
+                );
+
+                for (pin, edge) in pin_events {
+                    info!("  📌 Pin {} triggered on {:?} edge", pin.number(), edge);
+
+                    // CONSISTENCY: Can directly use typed pin with other GPIO functions
+                    // (no conversion from u8 to GpioPin required!)
+                    match device.gpio_read(pin) {
+                        Ok(level) => {
+                            info!("     Current level: {:?}", level);
+
+                            // Demonstrate edge validation
+                            let edge_matches = matches!(
+                                (edge, level),
+                                (GpioEdge::Rising, GpioLevel::High)
+                                    | (GpioEdge::Falling, GpioLevel::Low)
+                                    | (GpioEdge::Both, _)
+                            );
+
+                            if edge_matches {
+                                info!("     ✅ Edge detection consistent with current level");
+                            } else {
+                                warn!("     ⚠️  Edge/level mismatch - possible race condition");
+                            }
+                        }
+                        Err(e) => {
+                            warn!("     ❌ Failed to read pin {}: {}", pin.number(), e);
+                        }
+                    }
+
+                    // TYPE SAFETY: The pin is guaranteed to be valid (0-31)
+                    // because GpioPin::new() was called during parsing
+                    assert!(pin.number() <= 31);
+
+                    // ERGONOMICS: Can use pin directly with other operations
+                    if let Ok(direction) = device.gpio_get_direction(pin) {
+                        info!("     🔧 Pin direction: {:?}", direction);
+                    }
+                }
+
+                info!("✨ BENEFITS of new API:");
+                info!("   ✅ Type-safe GpioPin objects throughout");
+                info!("   ✅ No manual u8 → GpioPin conversion required");
+                info!("   ✅ Consistent API across all GPIO functions");
+                info!("   ✅ Error handling at API boundary");
+            } else {
+                info!("✨ NEW API: No interrupt events detected in this report");
+            }
+        }
+        Err(e) => {
+            error!("❌ NEW API: Failed to parse interrupt pins: {}", e);
+        }
     }
 
     Ok(())

@@ -255,6 +255,17 @@ pub enum GpioPull {
     Down,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// Edge detection type for GPIO interrupt configuration.
+pub enum GpioEdge {
+    /// Rising edge (transition from low to high).
+    Rising,
+    /// Falling edge (transition from high to low).
+    Falling,
+    /// Both rising and falling edges.
+    Both,
+}
+
 /// Represents a valid GPIO Pin number (0-31).
 /// Use `GpioPin::new(num)` to create.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

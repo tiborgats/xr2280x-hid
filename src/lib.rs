@@ -523,6 +523,203 @@
 //! # }
 //! ```
 //!
+//! ### GPIO Interrupt Handling
+//!
+//! The XR2280x devices support GPIO interrupts with configurable edge detection.
+//! The crate provides a **consistent Pin API** that eliminates the need for manual
+//! pin number conversions and provides type safety throughout.
+//!
+//! #### Consistent Pin API Benefits
+//!
+//! - **🛡️ Type Safety**: All pin numbers validated through `GpioPin::new()`
+//! - **🎯 Ergonomics**: No manual `u8` to `GpioPin` conversions required
+//! - **⚡ Error Handling**: Invalid pin numbers caught at API boundary
+//! - **🔄 Consistency**: Uniform use of `GpioPin` across all GPIO functions
+//!
+//! #### GPIO Edge Detection
+//!
+//! ```no_run
+//! use xr2280x_hid::{Xr2280x, GpioEdge, GpioPin, GpioPull, device_find_first};
+//! use hidapi::HidApi;
+//!
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! let hid_api = HidApi::new()?;
+//! let device = Xr2280x::device_open_first(&hid_api)?;
+//!
+//! // Configure GPIO pins for interrupt monitoring
+//! let interrupt_pins = [0, 1, 2, 3];
+//!
+//! for &pin_num in &interrupt_pins {
+//!     let pin = GpioPin::new(pin_num)?;
+//!
+//!     // Assign pin to EDGE interface
+//!     device.gpio_assign_to_edge(pin)?;
+//!
+//!     // Configure as input with pull-up
+//!     device.gpio_setup_input(pin, GpioPull::Up)?;
+//!
+//!     // Enable interrupts on both edges
+//!     device.gpio_configure_interrupt(pin, true, true, true)?;
+//! }
+//!
+//! println!("GPIO interrupts configured. Monitoring for events...");
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! #### Modern Interrupt Parsing API
+//!
+//! The new `parse_gpio_interrupt_pins()` function provides individual pin/edge
+//! combinations with full type safety:
+//!
+//! ```no_run
+//! use xr2280x_hid::{Xr2280x, GpioEdge, GpioLevel, device_find_first};
+//! use hidapi::HidApi;
+//!
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! # let hid_api = HidApi::new()?;
+//! # let device = Xr2280x::device_open_first(&hid_api)?;
+//! // Read interrupt report with timeout
+//! let report = device.read_gpio_interrupt_report(Some(1000))?;
+//!
+//! // NEW: Get individual pin/edge combinations with type safety
+//! let pin_events = device.parse_gpio_interrupt_pins(&report)?;
+//!
+//! for (pin, edge) in pin_events {
+//!     println!("📌 Pin {} triggered on {:?} edge", pin.number(), edge);
+//!
+//!     // Direct use with other GPIO functions - no conversion needed!
+//!     let current_level = device.gpio_read(pin)?;
+//!     let direction = device.gpio_get_direction(pin)?;
+//!
+//!     // Validate edge detection
+//!     let edge_matches = matches!(
+//!         (edge, current_level),
+//!         (GpioEdge::Rising, GpioLevel::High) |
+//!         (GpioEdge::Falling, GpioLevel::Low) |
+//!         (GpioEdge::Both, _)
+//!     );
+//!
+//!     if edge_matches {
+//!         println!("✅ Edge detection consistent with current level");
+//!     }
+//! }
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! #### API Migration Guide
+//!
+//! **Old Approach (Manual Parsing):**
+//! ```no_run
+//! # use xr2280x_hid::{Xr2280x, GpioPin};
+//! # fn old_example(device: &Xr2280x, report: &xr2280x_hid::GpioInterruptReport) -> xr2280x_hid::Result<()> {
+//! // ❌ OLD: Manual group mask parsing
+//! let parsed = unsafe { device.parse_gpio_interrupt_report(report)? };
+//!
+//! // User had to manually parse group masks and convert u8 to GpioPin
+//! for bit_pos in 0..16 {
+//!     if parsed.trigger_mask_group0 & (1 << bit_pos) != 0 {
+//!         let pin_num = bit_pos as u8;
+//!         let pin = GpioPin::new(pin_num)?; // Manual conversion required
+//!         // Use pin with other GPIO functions...
+//!     }
+//! }
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! **New Approach (Consistent Pin API):**
+//! ```no_run
+//! # use xr2280x_hid::{Xr2280x, GpioPin};
+//! # fn new_example(device: &Xr2280x, report: &xr2280x_hid::GpioInterruptReport) -> xr2280x_hid::Result<()> {
+//! // ✅ NEW: Clean, type-safe API
+//! let pin_events = device.parse_gpio_interrupt_pins(report)?;
+//!
+//! for (pin, edge) in pin_events {
+//!     // Pin is already validated and typed - no conversion needed!
+//!     println!("Pin {} triggered on {:?} edge", pin.number(), edge);
+//!
+//!     // Direct use with GPIO functions
+//!     let level = device.gpio_read(pin)?;
+//! }
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! #### Complete Interrupt Monitoring Example
+//!
+//! ```no_run
+//! use xr2280x_hid::{Xr2280x, GpioEdge, GpioLevel, GpioPin, GpioPull, device_find_first};
+//! use hidapi::HidApi;
+//! use std::collections::HashMap;
+//! use std::time::Duration;
+//!
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! let hid_api = HidApi::new()?;
+//! let device = Xr2280x::device_open_first(&hid_api)?;
+//!
+//! // Setup interrupt monitoring
+//! let monitor_pins = [0, 1, 2, 3];
+//! let mut pin_event_counts: HashMap<u8, usize> = HashMap::new();
+//!
+//! for &pin_num in &monitor_pins {
+//!     let pin = GpioPin::new(pin_num)?;
+//!     device.gpio_assign_to_edge(pin)?;
+//!     device.gpio_setup_input(pin, GpioPull::Up)?;
+//!     device.gpio_configure_interrupt(pin, true, true, true)?;
+//!     pin_event_counts.insert(pin_num, 0);
+//! }
+//!
+//! println!("Monitoring GPIO interrupts. Connect/disconnect pins to generate events...");
+//!
+//! // Monitor for 10 seconds
+//! for _ in 0..100 {
+//!     match device.read_gpio_interrupt_report(Some(100)) {
+//!         Ok(report) => {
+//!             // Process interrupt events with type-safe API
+//!             let pin_events = device.parse_gpio_interrupt_pins(&report)?;
+//!
+//!             for (pin, edge) in pin_events {
+//!                 let count = pin_event_counts.entry(pin.number()).or_insert(0);
+//!                 *count += 1;
+//!
+//!                 println!("🎉 Pin {} {:?} edge (count: {})",
+//!                     pin.number(), edge, count);
+//!
+//!                 // Validate current state
+//!                 let current_level = device.gpio_read(pin)?;
+//!                 println!("   Current level: {:?}", current_level);
+//!             }
+//!         }
+//!         Err(xr2280x_hid::Error::Timeout) => {
+//!             // Normal timeout, continue monitoring
+//!             continue;
+//!         }
+//!         Err(e) => return Err(e.into()),
+//!     }
+//! }
+//!
+//! // Display summary
+//! println!("\nInterrupt Summary:");
+//! for (pin, count) in pin_event_counts {
+//!     println!("  Pin {}: {} events", pin, count);
+//! }
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! #### Key Improvements
+//!
+//! 1. **Type Safety**: All pin numbers validated through `GpioPin::new()`
+//! 2. **API Consistency**: Entire GPIO API uses `GpioPin` throughout
+//! 3. **Error Handling**: Invalid pin numbers caught at API boundary
+//! 4. **Ergonomics**: No manual `u8` to `GpioPin` conversions required
+//! 5. **Edge Detection**: Typed `GpioEdge` enum for clear edge identification
+//!
+//! See the `consistent_pin_api.rs` and `gpio_interrupt_safe_usage.rs` examples
+//! for comprehensive demonstrations of interrupt handling patterns.
+//!
 //! ### PWM Generation
 //!
 //! ```no_run
@@ -757,7 +954,7 @@ pub use device::{
     device_find_first,
 };
 pub use error::{Error, Result};
-pub use gpio::{GpioDirection, GpioGroup, GpioLevel, GpioPin, GpioPull, GpioTransaction};
+pub use gpio::{GpioDirection, GpioEdge, GpioGroup, GpioLevel, GpioPin, GpioPull, GpioTransaction};
 pub use i2c::{I2cAddress, timeouts};
 pub use interrupt::{GpioInterruptReport, ParsedGpioInterruptReport};
 pub use pwm::{PwmChannel, PwmCommand};

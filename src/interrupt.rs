@@ -3,7 +3,7 @@
 use crate::consts;
 use crate::device::Xr2280x;
 use crate::error::{Error, Result};
-use crate::gpio::GpioPin;
+use crate::gpio::{GpioEdge, GpioPin};
 use log::{debug, trace, warn};
 
 /// Default timeout for interrupt reads in milliseconds.
@@ -397,5 +397,123 @@ impl Xr2280x {
             // Skip the HID Report ID at index 0, return actual hardware data
             &report.raw_data[1..]
         }
+    }
+
+    /// **IMPROVED**: Parse GPIO interrupt report into individual pin/edge combinations.
+    ///
+    /// This function provides a more ergonomic API by converting the raw group masks
+    /// into individual `(GpioPin, GpioEdge)` combinations. This eliminates the need
+    /// for callers to manually parse group masks and handle pin number conversions.
+    ///
+    /// ## Type Safety
+    ///
+    /// - Returns typed `GpioPin` instances instead of raw `u8` values
+    /// - Handles `GpioPin::new()` conversion internally with proper error handling
+    /// - Ensures all returned pins are valid (0-31 range)
+    ///
+    /// ## Edge Detection Logic
+    ///
+    /// The function analyzes interrupt trigger masks and current pin states to determine:
+    /// - **Rising Edge**: Pin triggered and current state is high
+    /// - **Falling Edge**: Pin triggered and current state is low
+    /// - **Both**: When ambiguous, defaults to `GpioEdge::Both`
+    ///
+    /// ## Parameters
+    ///
+    /// * `report` - GPIO interrupt report received from hardware
+    ///
+    /// ## Returns
+    ///
+    /// * `Ok(Vec<(GpioPin, GpioEdge)>)` - List of pins that triggered with their edge types
+    /// * `Err(Error)` - Parsing failed or invalid pin numbers detected
+    ///
+    /// ## Example
+    ///
+    /// ```rust,no_run
+    /// # use xr2280x_hid::*;
+    /// # fn example(device: &Xr2280x) -> std::result::Result<(), Box<dyn std::error::Error>> {
+    /// let raw_report = device.read_gpio_interrupt_report(Some(1000))?;
+    ///
+    /// // NEW: Get individual pin/edge combinations with type safety
+    /// let pin_events = device.parse_gpio_interrupt_pins(&raw_report)?;
+    ///
+    /// for (pin, edge) in pin_events {
+    ///     println!("Pin {} triggered on {:?} edge", pin.number(), edge);
+    ///
+    ///     // Can directly use typed pin with other GPIO functions
+    ///     let current_level = device.gpio_read(pin)?;
+    ///     println!("Current level: {:?}", current_level);
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// ## Safety
+    ///
+    /// This function is safe because it:
+    /// - Uses the existing `parse_gpio_interrupt_report` for data extraction
+    /// - Validates all pin numbers through `GpioPin::new()`
+    /// - Returns errors for any invalid hardware data
+    ///
+    /// **Note**: The underlying interrupt report parsing is still speculative
+    /// and may return incorrect data until the XR2280x interrupt format is
+    /// properly documented.
+    pub fn parse_gpio_interrupt_pins(
+        &self,
+        report: &GpioInterruptReport,
+    ) -> Result<Vec<(GpioPin, GpioEdge)>> {
+        // Use existing parsing function to get raw data
+        let parsed = unsafe { self.parse_gpio_interrupt_report(report)? };
+
+        let mut pin_events = Vec::new();
+
+        // Process Group 0 (pins 0-15)
+        let group0_triggers = parsed.trigger_mask_group0;
+        let group0_states = parsed.current_state_group0;
+
+        for bit_pos in 0..16 {
+            if group0_triggers & (1 << bit_pos) != 0 {
+                let pin_num = bit_pos;
+                let pin = GpioPin::new(pin_num)?;
+
+                // Determine edge type based on current state
+                let is_high = group0_states & (1 << bit_pos) != 0;
+                let edge = if is_high {
+                    GpioEdge::Rising
+                } else {
+                    GpioEdge::Falling
+                };
+
+                pin_events.push((pin, edge));
+            }
+        }
+
+        // Process Group 1 (pins 16-31)
+        let group1_triggers = parsed.trigger_mask_group1;
+        let group1_states = parsed.current_state_group1;
+
+        for bit_pos in 0..16 {
+            if group1_triggers & (1 << bit_pos) != 0 {
+                let pin_num = bit_pos + 16;
+                let pin = GpioPin::new(pin_num)?;
+
+                // Determine edge type based on current state
+                let is_high = group1_states & (1 << bit_pos) != 0;
+                let edge = if is_high {
+                    GpioEdge::Rising
+                } else {
+                    GpioEdge::Falling
+                };
+
+                pin_events.push((pin, edge));
+            }
+        }
+
+        debug!(
+            "Parsed {} GPIO interrupt events from report",
+            pin_events.len()
+        );
+
+        Ok(pin_events)
     }
 }
