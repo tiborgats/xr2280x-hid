@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.9] - 2025-06-25
+
+### Fixed
+- **CRITICAL: Device Enumeration Interface Detection**: Fixed hardware device enumeration incorrectly grouping devices with similar serial numbers, causing missing I2C interfaces
+  - **Root Cause**: Device grouping algorithm was too greedy when matching similar serial numbers, causing interface overwrites when multiple devices had serials differing by only one character
+  - **Impact**: Devices with similar serials (e.g., "6507DA00" and "6507D300") would be incorrectly grouped together, with later devices overwriting earlier interfaces, resulting in some devices appearing to lack I2C capability
+  - **Example**: Device with serial "7507D300" would show as "EDGE Interface Only" when it actually has both I2C and EDGE interfaces
+  - **Solution**: Added interface conflict detection to prevent overwriting existing interfaces when grouping by similar serials - creates separate device entries instead
+  - **Technical Details**:
+    - Before: Similar serials blindly grouped together, later devices overwrote earlier interface assignments
+    - After: Algorithm checks if interface slot is occupied before grouping, creates new device entry if conflict detected
+    - Debug message: "Interface slot already occupied for device X, creating separate entry for Y"
+  - **Result**: All physical devices now correctly show both I2C and EDGE interfaces when present, matching actual hardware capabilities
+
 ## [0.9.8] - 2025-06-20
 
 ### Fixed

@@ -131,8 +131,31 @@ pub fn device_find(hid_api: &HidApi) -> impl Iterator<Item = XrDeviceInfo> + '_ 
                 serial.clone()
             };
 
+            // Check if we would overwrite an existing interface
+            let would_overwrite = if let Some(existing_device) = devices_by_serial.get(&device_key)
+            {
+                match info.pid {
+                    consts::XR2280X_I2C_PID => existing_device.i2c_interface.is_some(),
+                    consts::XR2280X_EDGE_PID => existing_device.edge_interface.is_some(),
+                    _ => false,
+                }
+            } else {
+                false
+            };
+
+            // If we would overwrite an existing interface, create a new device entry instead
+            let final_device_key = if would_overwrite {
+                debug!(
+                    "Interface slot already occupied for device {}, creating separate entry for {}",
+                    device_key, serial
+                );
+                serial.clone() // Use the original serial as the key for a new device
+            } else {
+                device_key
+            };
+
             let device = devices_by_serial
-                .entry(device_key)
+                .entry(final_device_key)
                 .or_insert_with(|| XrDeviceInfo {
                     vid: info.vid,
                     serial_number: info.serial_number.clone(),
