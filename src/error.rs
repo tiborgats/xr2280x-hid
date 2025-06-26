@@ -213,8 +213,7 @@ pub(crate) fn unsupported_gpio_group1() -> Error {
 }
 pub(crate) fn unsupported_pwm_pin(pin: u8) -> Error {
     Error::UnsupportedFeature(format!(
-        "Assigning PWM to pin {} requires XR22802/XR22804 (XR22800/1 only support pins 0-7)",
-        pin
+        "Assigning PWM to pin {pin} requires XR22802/XR22804 (XR22800/1 only support pins 0-7)"
     ))
 }
 

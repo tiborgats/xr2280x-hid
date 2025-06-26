@@ -122,10 +122,7 @@ pub fn device_find(hid_api: &HidApi) -> impl Iterator<Item = XrDeviceInfo> + '_ 
                 serial.clone()
             } else if let Some(similar_key) = find_similar_serial_key(&devices_by_serial, serial) {
                 // Found a device with similar serial number - group them together
-                debug!(
-                    "Grouping devices with similar serial numbers: {} and {}",
-                    similar_key, serial
-                );
+                debug!("Grouping devices with similar serial numbers: {similar_key} and {serial}");
                 similar_key
             } else {
                 serial.clone()
@@ -146,8 +143,7 @@ pub fn device_find(hid_api: &HidApi) -> impl Iterator<Item = XrDeviceInfo> + '_ 
             // If we would overwrite an existing interface, create a new device entry instead
             let final_device_key = if would_overwrite {
                 debug!(
-                    "Interface slot already occupied for device {}, creating separate entry for {}",
-                    device_key, serial
+                    "Interface slot already occupied for device {device_key}, creating separate entry for {serial}"
                 );
                 serial.clone() // Use the original serial as the key for a new device
             } else {
@@ -404,7 +400,7 @@ impl Xr2280x {
                 Some(hid_api.open_path(&i2c_info.path).map_err(|e| {
                     Error::DeviceNotFoundByPath {
                         path: format!("{:?}", i2c_info.path),
-                        message: format!("Failed to open I2C interface: {}", e),
+                        message: format!("Failed to open I2C interface: {e}"),
                     }
                 })?)
             } else {
@@ -416,7 +412,7 @@ impl Xr2280x {
                 Some(hid_api.open_path(&edge_info.path).map_err(|e| {
                     Error::DeviceNotFoundByPath {
                         path: format!("{:?}", edge_info.path),
-                        message: format!("Failed to open EDGE interface: {}", e),
+                        message: format!("Failed to open EDGE interface: {e}"),
                     }
                 })?)
             } else {
@@ -453,8 +449,8 @@ impl Xr2280x {
         let device = hid_api
             .open_path(path)
             .map_err(|e| Error::DeviceNotFoundByPath {
-                path: format!("{:?}", path),
-                message: format!("{}", e),
+                path: format!("{path:?}"),
+                message: format!("{e}"),
             })?;
 
         // Get device info to determine which interface this is
@@ -525,7 +521,7 @@ impl Xr2280x {
         let device_info_hid = info_device.get_device_info().map_err(Error::Hid)?;
         let vid = device_info_hid.vendor_id();
 
-        debug!("Creating XR2280x from HidDevices: VID={:04X}", vid);
+        debug!("Creating XR2280x from HidDevices: VID={vid:04X}");
 
         let manufacturer_string = info_device
             .get_manufacturer_string()?
@@ -541,7 +537,7 @@ impl Xr2280x {
             product_string,
             manufacturer_string,
         };
-        trace!("Hardware Device Info: {:?}", info);
+        trace!("Hardware Device Info: {info:?}");
 
         // --- Capability Detection ---
         let temp_handle = Self {
@@ -559,8 +555,7 @@ impl Xr2280x {
                 }
                 Err(e) => {
                     debug!(
-                        "Detected support for 8 GPIOs (failed to read GPIO Group 1 register): {}",
-                        e
+                        "Detected support for 8 GPIOs (failed to read GPIO Group 1 register): {e}"
                     );
                     Capabilities { gpio_count: 8 }
                 }
