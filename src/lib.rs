@@ -1082,8 +1082,7 @@ mod tests {
                 let wire_format = a << 1;
                 assert_eq!(
                     wire_format, expected_wire,
-                    "7-bit address 0x{:02X} should become 0x{:02X} on wire, got 0x{:02X}",
-                    addr_7bit, expected_wire, wire_format
+                    "7-bit address 0x{addr_7bit:02X} should become 0x{expected_wire:02X} on wire, got 0x{wire_format:02X}"
                 );
             }
         }
@@ -1138,9 +1137,7 @@ mod tests {
             // Should be exact or within 1 unit due to rounding
             assert!(
                 units_back == units || units_back == units - 1 || units_back == units + 1,
-                "Round-trip failed for {} units: got {} back",
-                units,
-                units_back
+                "Round-trip failed for {units} units: got {units_back} back"
             );
         }
     }

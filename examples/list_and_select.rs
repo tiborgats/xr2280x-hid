@@ -79,14 +79,14 @@ fn main() -> Result<()> {
     let device = match xr2280x_hid::Xr2280x::device_open(&hid_api, selected_info) {
         Ok(dev) => dev,
         Err(e) => {
-            eprintln!("Error opening selected device: {}", e);
+            eprintln!("Error opening selected device: {e}");
             return Err(e);
         }
     };
 
     println!("Successfully opened device!");
     let opened_info = device.get_device_info();
-    println!("Opened Info: {:?}", opened_info);
+    println!("Opened Info: {opened_info:?}");
     println!("Capabilities: {:?}", device.get_capabilities());
 
     // --- Now you can interact with the 'device' handle ---
@@ -94,8 +94,8 @@ fn main() -> Result<()> {
     if selected_info.edge_interface.is_some() {
         let pin0 = GpioPin::new(0)?; // Use typed pin
         match device.gpio_read(pin0) {
-            Ok(level) => println!("GPIO Pin 0 current level: {:?}", level),
-            Err(e) => eprintln!("Error reading GPIO 0: {}", e),
+            Ok(level) => println!("GPIO Pin 0 current level: {level:?}"),
+            Err(e) => eprintln!("Error reading GPIO 0: {e}"),
         }
     } else {
         println!("Opened device is not an EDGE interface, skipping GPIO read example.");

@@ -24,7 +24,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("  No XR2280x hardware devices found.");
     } else {
         for (i, device_info) in hardware_devices.iter().enumerate() {
-            println!("  Hardware Device [{}]:", i);
+            println!("  Hardware Device [{i}]:");
             println!(
                 "    Serial Number: {}",
                 device_info.serial_number.as_deref().unwrap_or("N/A")
@@ -89,7 +89,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     println!("Testing I2C interface...");
                     match device.i2c_set_speed_khz(100) {
                         Ok(()) => println!("✓ I2C speed set to 100kHz"),
-                        Err(e) => println!("✗ I2C speed setting failed: {}", e),
+                        Err(e) => println!("✗ I2C speed setting failed: {e}"),
                     }
                 } else {
                     println!("I2C interface not available on this device");
@@ -109,7 +109,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
             }
             Err(e) => {
-                println!("✗ Failed to open device: {}", e);
+                println!("✗ Failed to open device: {e}");
             }
         }
     } else {
@@ -124,16 +124,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Opening by index (0)...");
     match Xr2280x::open_by_index(&hid_api, 0) {
         Ok(_device) => println!("✓ Successfully opened device by index"),
-        Err(e) => println!("✗ Failed to open by index: {}", e),
+        Err(e) => println!("✗ Failed to open by index: {e}"),
     }
 
     // Open by serial (if we have one)
     if let Some(first_device) = hardware_devices.first() {
         if let Some(ref serial) = first_device.serial_number {
-            println!("Opening by serial number '{}'...", serial);
+            println!("Opening by serial number '{serial}'...");
             match Xr2280x::open_by_serial(&hid_api, serial) {
                 Ok(_device) => println!("✓ Successfully opened device by serial number"),
-                Err(e) => println!("✗ Failed to open by serial: {}", e),
+                Err(e) => println!("✗ Failed to open by serial: {e}"),
             }
         }
     }

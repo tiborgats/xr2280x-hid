@@ -22,7 +22,7 @@ fn main() -> Result<()> {
     println!("Device opened: {:?}\n", device.get_device_info());
 
     let gpio_count = device.get_capabilities().gpio_count;
-    println!("Available GPIO count: {}\n", gpio_count);
+    println!("Available GPIO count: {gpio_count}\n");
 
     // Use first 4 available pins for demo
     let demo_pins: Vec<GpioPin> = (0..4.min(gpio_count))
@@ -74,15 +74,12 @@ fn main() -> Result<()> {
     )?;
 
     let efficient_time = start_time.elapsed();
-    println!(
-        "   Time: {:?} (~6 HID transactions total)\n",
-        efficient_time
-    );
+    println!("   Time: {efficient_time:?} (~6 HID transactions total)\n");
 
     // === PERFORMANCE COMPARISON ===
     if inefficient_time > efficient_time {
         let speedup = inefficient_time.as_nanos() as f64 / efficient_time.as_nanos() as f64;
-        println!("🚀 Performance improvement: {:.1}x faster!", speedup);
+        println!("🚀 Performance improvement: {speedup:.1}x faster!");
     }
     println!(
         "   HID transaction reduction: {}x fewer transactions\n",
@@ -181,7 +178,7 @@ fn main() -> Result<()> {
     }
 
     let bulk_write_time = start.elapsed();
-    println!("   Time: {:?} (2 HID transactions max)\n", bulk_write_time);
+    println!("   Time: {bulk_write_time:?} (2 HID transactions max)\n");
 
     // === PERFORMANCE RECOMMENDATIONS ===
     println!("=== Performance Recommendations ===\n");

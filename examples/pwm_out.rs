@@ -51,11 +51,11 @@ fn main() -> Result<()> {
         target_freq_hz,
         duty_cycle * 100.0
     );
-    println!("Calculated High: {} ns, Low: {} ns", high_ns, low_ns);
+    println!("Calculated High: {high_ns} ns, Low: {low_ns} ns");
 
     device.pwm_set_periods_ns(PWM_CHANNEL, high_ns, low_ns)?;
     let (read_high, read_low) = device.pwm_get_periods_ns(PWM_CHANNEL)?;
-    println!("Read back High: {} ns, Low: {} ns", read_high, read_low);
+    println!("Read back High: {read_high} ns, Low: {read_low} ns");
 
     device.pwm_set_pin(PWM_CHANNEL, pwm_pin)?;
     println!("Starting PWM output...");

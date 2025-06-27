@@ -53,22 +53,20 @@ fn demo_nack_error(device: &Xr2280x) {
     let test_addr = 0x77; // Try an address that probably has no device
     let mut buffer = [0u8; 1];
 
-    println!(
-        "Trying to read from address 0x{:02X} (probably no device there)...",
-        test_addr
-    );
+    println!("Trying to read from address 0x{test_addr:02X} (probably no device there)....");
 
     match device.i2c_read_7bit_with_timeout(test_addr, &mut buffer, timeouts::READ) {
         Ok(_) => {
-            println!("✓ Unexpected - device found at 0x{:02X}!", test_addr);
+            println!("✓ Unexpected - device found at 0x{test_addr:02X}!");
         }
         Err(Error::I2cNack { address }) => {
+            let nack_error = Error::I2cNack { address };
             println!("✓ Expected NACK error:");
-            println!("   {}", Error::I2cNack { address });
+            println!("   {nack_error}");
             println!("   → This is NORMAL when scanning - just means no device at this address");
         }
         Err(e) => {
-            println!("✗ Different error: {}", e);
+            println!("✗ Different error: {e}");
         }
     }
     println!();
@@ -86,18 +84,19 @@ fn demo_timeout_error(device: &Xr2280x) {
     match device.i2c_read_7bit_with_timeout(test_addr, &mut buffer, 1) {
         // 1ms timeout
         Ok(_) => {
-            println!("✓ Device responded very quickly at 0x{:02X}", test_addr);
+            println!("✓ Device responded very quickly at 0x{test_addr:02X}");
         }
         Err(Error::I2cTimeout { address }) => {
+            let timeout_error = Error::I2cTimeout { address };
             println!("⚠ Timeout error (this demonstrates the improved message):");
-            println!("   {}", Error::I2cTimeout { address });
+            println!("   {timeout_error}");
             println!("   → This provides clear guidance on what to check!");
         }
         Err(Error::I2cNack { .. }) => {
-            println!("- No device at 0x{:02X} (normal)", test_addr);
+            println!("- No device at 0x{test_addr:02X} (normal)");
         }
         Err(e) => {
-            println!("✗ Different error: {}", e);
+            println!("✗ Different error: {e}");
         }
     }
     println!();
@@ -114,7 +113,7 @@ fn demo_arbitration_error(_device: &Xr2280x) {
     let example_error = Error::I2cArbitrationLost {
         address: example_addr,
     };
-    println!("   {}", example_error);
+    println!("   {example_error}");
     println!("   → Provides specific troubleshooting steps for bus conflicts!");
     println!();
 }
@@ -130,7 +129,7 @@ fn demo_request_error(_device: &Xr2280x) {
     let example_error = Error::I2cRequestError {
         address: example_addr,
     };
-    println!("   {}", example_error);
+    println!("   {example_error}");
     println!("   → Tells you exactly what parameters to check!");
     println!();
 }
@@ -147,7 +146,7 @@ fn demo_normal_scan(device: &Xr2280x) {
         timeouts::SCAN,
         |addr, found, idx, _total| {
             if found {
-                println!("   Device found at 0x{:02X}", addr);
+                println!("   Device found at 0x{addr:02X}");
             }
             if idx == 0 {
                 println!("   Scanning sensor address range (0x48-0x4F)...");
@@ -156,17 +155,21 @@ fn demo_normal_scan(device: &Xr2280x) {
     ) {
         Ok(devices) => {
             let duration = start.elapsed();
-            println!("✓ Scan completed in {:?}", duration);
+            println!("✓ Scan completed in {duration:?}");
             if devices.is_empty() {
                 println!("   No devices found in range 0x48-0x4F (this is normal)");
             } else {
-                println!("   Found {} device(s): {:02X?}", devices.len(), devices);
+                println!(
+                    "   Found {len} device(s): {devices:02X?}",
+                    len = devices.len()
+                );
             }
         }
         Err(Error::I2cTimeout { address }) => {
             let duration = start.elapsed();
-            println!("⚠ Scan failed with timeout in {:?}:", duration);
-            println!("   {}", Error::I2cTimeout { address });
+            let timeout_error = Error::I2cTimeout { address };
+            println!("⚠ Scan failed with timeout in {duration:?}:");
+            println!("   {timeout_error}");
             println!("   → Notice how it provides helpful troubleshooting guidance!");
 
             if duration.as_secs() < 5 {
@@ -174,12 +177,13 @@ fn demo_normal_scan(device: &Xr2280x) {
             }
         }
         Err(Error::I2cArbitrationLost { address }) => {
+            let arbitration_error = Error::I2cArbitrationLost { address };
             println!("⚠ Scan failed with arbitration lost:");
-            println!("   {}", Error::I2cArbitrationLost { address });
+            println!("   {arbitration_error}");
             println!("   → Specific guidance for bus contention issues!");
         }
         Err(e) => {
-            println!("✗ Scan failed: {}", e);
+            println!("✗ Scan failed: {e}");
         }
     }
     println!();

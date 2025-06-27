@@ -50,13 +50,13 @@ fn demonstrate_i2c_error_handling(device: &xr2280x_hid::Xr2280x) -> Result<()> {
     let mut buffer = [0u8; 1];
 
     match device.i2c_read_7bit(test_address, &mut buffer) {
-        Ok(_) => println!("   ✓ Device found at 0x{:02X}", test_address),
+        Ok(_) => println!("   ✓ Device found at 0x{test_address:02X}"),
         Err(Error::I2cNack { address }) => {
-            println!("   ℹ No device at address {} (this is normal)", address);
+            println!("   ℹ No device at address {address} (this is normal)");
             println!("     This is expected when scanning for devices");
         }
         Err(Error::I2cTimeout { address }) => {
-            println!("   ⚠ Hardware issue detected at address {}", address);
+            println!("   ⚠ Hardware issue detected at address {address}");
             println!("     Troubleshooting steps:");
             println!("       - Check device power supply (3.3V)");
             println!("       - Verify I2C pull-up resistors (4.7kΩ)");
@@ -64,13 +64,13 @@ fn demonstrate_i2c_error_handling(device: &xr2280x_hid::Xr2280x) -> Result<()> {
             println!("       - Check for short circuits on SDA/SCL lines");
         }
         Err(Error::I2cArbitrationLost { address }) => {
-            println!("   ⚠ Bus contention detected at address {}", address);
+            println!("   ⚠ Bus contention detected at address {address}");
             println!("     Possible causes:");
             println!("       - Multiple I2C masters on the bus");
             println!("       - Electrical interference or noise");
             println!("       - Loose connections causing signal corruption");
         }
-        Err(e) => println!("   ✗ Unexpected error: {}", e),
+        Err(e) => println!("   ✗ Unexpected error: {e}"),
     }
 
     // Example 2: Comprehensive bus scanning with error handling
@@ -85,11 +85,11 @@ fn demonstrate_i2c_error_handling(device: &xr2280x_hid::Xr2280x) -> Result<()> {
                 println!("       - Missing pull-up resistors");
                 println!("       - Power supply issues");
             } else {
-                println!("   ✓ Found {} I2C devices: {:02X?}", devices.len(), devices);
+                println!("   ✓ Found {} I2C devices: {devices:02X?}", devices.len());
             }
         }
         Err(Error::I2cTimeout { address }) => {
-            println!("   ⚠ Bus scan failed with timeout at address {}", address);
+            println!("   ⚠ Bus scan failed with timeout at address {address}");
             println!("     Hardware diagnostics required - see troubleshooting above");
             return Ok(()); // Don't propagate this error for demo purposes
         }
@@ -110,26 +110,26 @@ fn demonstrate_gpio_error_handling(device: &xr2280x_hid::Xr2280x) -> Result<()> 
     match GpioPin::new(99) {
         Ok(_) => println!("   Unexpected: Pin 99 should be invalid"),
         Err(Error::PinArgumentOutOfRange { pin, message }) => {
-            println!("   ✓ Correctly rejected invalid pin {}: {}", pin, message);
+            println!("   ✓ Correctly rejected invalid pin {pin}: {message}");
             println!("     Application can validate pins before use");
         }
-        Err(e) => println!("   Unexpected error type: {}", e),
+        Err(e) => println!("   Unexpected error type: {e}"),
     }
 
     // Example 2: Device capability checking
     println!("\n2. Device capability validation:");
 
     let gpio_count = device.get_capabilities().gpio_count;
-    println!("   Device has {} GPIO pins available", gpio_count);
+    println!("   Device has {gpio_count} GPIO pins available");
 
     // Try to use a pin that might not exist on this device
     let test_pin = if gpio_count == 8 { 15 } else { 0 }; // Pin 15 doesn't exist on 8-pin devices
 
     if let Ok(pin) = GpioPin::new(test_pin) {
         match device.gpio_set_direction(pin, GpioDirection::Output) {
-            Ok(_) => println!("   ✓ Successfully configured pin {}", test_pin),
+            Ok(_) => println!("   ✓ Successfully configured pin {test_pin}"),
             Err(Error::UnsupportedFeature(msg)) => {
-                println!("   ℹ Feature limitation detected: {}", msg);
+                println!("   ℹ Feature limitation detected: {msg}");
                 println!("     Application can check device capabilities first");
             }
             Err(Error::GpioRegisterWriteError {
@@ -138,15 +138,14 @@ fn demonstrate_gpio_error_handling(device: &xr2280x_hid::Xr2280x) -> Result<()> 
                 message,
             }) => {
                 println!(
-                    "   ⚠ GPIO hardware error on pin {} register 0x{:04X}: {}",
-                    pin, register, message
+                    "   ⚠ GPIO hardware error on pin {pin} register 0x{register:04X}: {message}"
                 );
                 println!("     Hardware diagnostics:");
                 println!("       - Check device connection and power");
                 println!("       - Verify USB cable and hub functionality");
                 println!("       - Try power cycling the XR2280x device");
             }
-            Err(e) => println!("   Unexpected error: {}", e),
+            Err(e) => println!("   Unexpected error: {e}"),
         }
     }
 
@@ -161,18 +160,17 @@ fn demonstrate_gpio_error_handling(device: &xr2280x_hid::Xr2280x) -> Result<()> 
 
                 // Demonstrate read operation with error handling
                 match device.gpio_read(pin) {
-                    Ok(level) => println!("   ✓ Pin 0 current level: {:?}", level),
+                    Ok(level) => println!("   ✓ Pin 0 current level: {level:?}"),
                     Err(Error::GpioRegisterReadError {
                         pin,
                         register,
                         message,
                     }) => {
                         println!(
-                            "   ⚠ Failed to read pin {} register 0x{:04X}: {}",
-                            pin, register, message
+                            "   ⚠ Failed to read pin {pin} register 0x{register:04X}: {message}"
                         );
                     }
-                    Err(e) => println!("   Unexpected read error: {}", e),
+                    Err(e) => println!("   Unexpected read error: {e}"),
                 }
             }
             Err(Error::GpioRegisterWriteError {
@@ -180,12 +178,9 @@ fn demonstrate_gpio_error_handling(device: &xr2280x_hid::Xr2280x) -> Result<()> 
                 register,
                 message,
             }) => {
-                println!(
-                    "   ⚠ Failed to configure pin {} register 0x{:04X}: {}",
-                    pin, register, message
-                );
+                println!("   ⚠ Failed to configure pin {pin} register 0x{register:04X}: {message}");
             }
-            Err(e) => println!("   Configuration error: {}", e),
+            Err(e) => println!("   Configuration error: {e}"),
         }
     }
 
@@ -203,13 +198,10 @@ fn demonstrate_pwm_error_handling(device: &xr2280x_hid::Xr2280x) -> Result<()> {
     match device.ns_to_pwm_units(0) {
         Ok(_) => println!("   Unexpected: 0ns should be invalid"),
         Err(Error::PwmParameterError { channel, message }) => {
-            println!(
-                "   ✓ Correctly rejected invalid timing parameter: {}",
-                message
-            );
-            println!("     Channel context: {}", channel);
+            println!("   ✓ Correctly rejected invalid timing parameter: {message}");
+            println!("     Channel context: {channel}");
         }
-        Err(e) => println!("   Unexpected error type: {}", e),
+        Err(e) => println!("   Unexpected error type: {e}"),
     }
 
     // Example 2: PWM configuration with error handling
@@ -221,7 +213,7 @@ fn demonstrate_pwm_error_handling(device: &xr2280x_hid::Xr2280x) -> Result<()> {
     match device.pwm_set_periods_ns(channel, 1000000, 1000000) {
         // 1ms high, 1ms low
         Ok(_) => {
-            println!("   ✓ Successfully set PWM periods for {:?}", channel);
+            println!("   ✓ Successfully set PWM periods for {channel:?}");
 
             // Try to assign to a pin
             if let Ok(pin) = GpioPin::new(0) {
@@ -236,10 +228,7 @@ fn demonstrate_pwm_error_handling(device: &xr2280x_hid::Xr2280x) -> Result<()> {
                         // Try to enable PWM
                         match device.pwm_control(channel, true, PwmCommand::FreeRun) {
                             Ok(_) => {
-                                println!(
-                                    "   ✓ Successfully enabled {:?} in free-run mode",
-                                    channel
-                                );
+                                println!("   ✓ Successfully enabled {channel:?} in free-run mode");
 
                                 // Let it run briefly
                                 thread::sleep(Duration::from_millis(100));
@@ -249,35 +238,26 @@ fn demonstrate_pwm_error_handling(device: &xr2280x_hid::Xr2280x) -> Result<()> {
                                 println!("   ✓ PWM disabled");
                             }
                             Err(Error::PwmHardwareError { channel, message }) => {
-                                println!(
-                                    "   ⚠ PWM hardware error on channel {}: {}",
-                                    channel, message
-                                );
+                                println!("   ⚠ PWM hardware error on channel {channel}: {message}");
                                 println!("     Check device capabilities and pin assignments");
                             }
-                            Err(e) => println!("   PWM control error: {}", e),
+                            Err(e) => println!("   PWM control error: {e}"),
                         }
                     }
                     Err(Error::UnsupportedFeature(msg)) => {
-                        println!("   ℹ PWM pin assignment limitation: {}", msg);
+                        println!("   ℹ PWM pin assignment limitation: {msg}");
                     }
                     Err(Error::PwmHardwareError { channel, message }) => {
-                        println!(
-                            "   ⚠ PWM pin assignment failed for channel {}: {}",
-                            channel, message
-                        );
+                        println!("   ⚠ PWM pin assignment failed for channel {channel}: {message}");
                     }
-                    Err(e) => println!("   PWM pin assignment error: {}", e),
+                    Err(e) => println!("   PWM pin assignment error: {e}"),
                 }
             }
         }
         Err(Error::PwmParameterError { channel, message }) => {
-            println!(
-                "   ⚠ PWM parameter error on channel {}: {}",
-                channel, message
-            );
+            println!("   ⚠ PWM parameter error on channel {channel}: {message}");
         }
-        Err(e) => println!("   PWM periods error: {}", e),
+        Err(e) => println!("   PWM periods error: {e}"),
     }
 
     Ok(())
@@ -296,37 +276,32 @@ fn demonstrate_error_recovery(device: &xr2280x_hid::Xr2280x) -> Result<()> {
     loop {
         match device.i2c_scan_default() {
             Ok(devices) => {
-                println!("   ✓ I2C scan successful after {} retries", retry_count);
-                println!("     Found devices: {:02X?}", devices);
+                println!("   ✓ I2C scan successful after {retry_count} retries");
+                println!("     Found devices: {devices:02X?}");
                 break;
             }
             Err(Error::I2cTimeout { address }) if retry_count < max_retries => {
                 retry_count += 1;
                 let delay_ms = 100 * 2_u64.pow(retry_count - 1); // Exponential backoff
                 println!(
-                    "   ⟳ Retry {} after timeout at {} (waiting {}ms)",
-                    retry_count, address, delay_ms
+                    "   ⟳ Retry {retry_count} after timeout at {address} (waiting {delay_ms}ms)"
                 );
                 thread::sleep(Duration::from_millis(delay_ms));
             }
             Err(Error::I2cTimeout { address }) => {
-                println!(
-                    "   ✗ Persistent I2C timeout at {} after {} retries",
-                    address, max_retries
-                );
+                println!("   ✗ Persistent I2C timeout at {address} after {max_retries} retries");
                 println!("     Hardware intervention required");
                 break;
             }
             Err(Error::I2cArbitrationLost { address }) if retry_count < max_retries => {
                 retry_count += 1;
                 println!(
-                    "   ⟳ Retry {} after arbitration lost at {} (brief delay)",
-                    retry_count, address
+                    "   ⟳ Retry {retry_count} after arbitration lost at {address} (brief delay)"
                 );
                 thread::sleep(Duration::from_millis(10)); // Short delay for arbitration
             }
             Err(e) => {
-                println!("   ✗ Non-recoverable error: {}", e);
+                println!("   ✗ Non-recoverable error: {e}");
                 break;
             }
         }
@@ -340,12 +315,9 @@ fn demonstrate_error_recovery(device: &xr2280x_hid::Xr2280x) -> Result<()> {
     for &pin_num in &test_pins {
         if let Ok(pin) = GpioPin::new(pin_num) {
             match device.gpio_setup_output(pin, GpioLevel::Low, GpioPull::None) {
-                Ok(_) => println!("   ✓ Pin {} configured successfully", pin_num),
+                Ok(_) => println!("   ✓ Pin {pin_num} configured successfully"),
                 Err(Error::UnsupportedFeature(_)) => {
-                    println!(
-                        "   ℹ Pin {} not supported, skipping (graceful degradation)",
-                        pin_num
-                    );
+                    println!("   ℹ Pin {pin_num} not supported, skipping (graceful degradation)");
                     // Application continues with supported pins only
                 }
                 Err(Error::GpioRegisterWriteError {
@@ -354,13 +326,12 @@ fn demonstrate_error_recovery(device: &xr2280x_hid::Xr2280x) -> Result<()> {
                     message,
                 }) => {
                     println!(
-                        "   ⚠ Hardware error on pin {} register 0x{:04X}: {}",
-                        pin, register, message
+                        "   ⚠ Hardware error on pin {pin} register 0x{register:04X}: {message}"
                     );
                     println!("     Marking pin as unavailable for this session");
                     // Application could maintain a list of failed pins
                 }
-                Err(e) => println!("   ✗ Unexpected error on pin {}: {}", pin_num, e),
+                Err(e) => println!("   ✗ Unexpected error on pin {pin_num}: {e}"),
             }
         }
     }
@@ -375,30 +346,21 @@ fn demonstrate_error_recovery(device: &xr2280x_hid::Xr2280x) -> Result<()> {
         match operation_result {
             Ok(_) => println!("   ✓ Complex operation completed successfully"),
             Err(Error::GpioRegisterReadError { pin, register, .. }) => {
-                println!("   ✗ User Message: Failed to read GPIO pin {} status", pin);
-                println!(
-                    "     Technical Details: Register 0x{:04X} read failure",
-                    register
-                );
+                println!("   ✗ User Message: Failed to read GPIO pin {pin} status");
+                println!("     Technical Details: Register 0x{register:04X} read failure");
                 println!("     User Action: Check device connection and try again");
             }
             Err(Error::GpioRegisterWriteError { pin, register, .. }) => {
-                println!("   ✗ User Message: Failed to configure GPIO pin {}", pin);
-                println!(
-                    "     Technical Details: Register 0x{:04X} write failure",
-                    register
-                );
+                println!("   ✗ User Message: Failed to configure GPIO pin {pin}");
+                println!("     Technical Details: Register 0x{register:04X} write failure");
                 println!("     User Action: Verify device power and USB connection");
             }
             Err(Error::PwmParameterError { channel, message }) => {
-                println!(
-                    "   ✗ User Message: Invalid PWM settings for channel {}",
-                    channel
-                );
-                println!("     Technical Details: {}", message);
+                println!("   ✗ User Message: Invalid PWM settings for channel {channel}");
+                println!("     Technical Details: {message}");
                 println!("     User Action: Adjust PWM frequency or duty cycle settings");
             }
-            Err(e) => println!("   ✗ Operation failed: {}", e),
+            Err(e) => println!("   ✗ Operation failed: {e}"),
         }
     }
 

@@ -722,10 +722,7 @@ impl<'a> GpioTransaction<'a> {
             };
         }
 
-        debug!(
-            "GPIO transaction committed with {} HID transactions",
-            transaction_count
-        );
+        debug!("GPIO transaction committed with {transaction_count} HID transactions");
         Ok(transaction_count)
     }
 }
@@ -1183,10 +1180,7 @@ impl Xr2280x {
             GpioDirection::Input => current & !mask, // 0 = Input
             GpioDirection::Output => current | mask, // 1 = Output
         };
-        debug!(
-            "Setting {:?} pins (mask=0x{:04X}) direction to {:?}",
-            group, mask, direction
-        );
+        debug!("Setting {group:?} pins (mask=0x{mask:04X}) direction to {direction:?}");
         self.write_gpio_register_masked(group, reg_dir, new_value)?;
         Ok(())
     }
@@ -1206,10 +1200,7 @@ impl Xr2280x {
         // Which pins to set low
         let clear_mask = mask & !values;
 
-        debug!(
-            "Writing to {:?}: set_mask=0x{:04X}, clear_mask=0x{:04X}",
-            group, set_mask, clear_mask
-        );
+        debug!("Writing to {group:?}: set_mask=0x{set_mask:04X}, clear_mask=0x{clear_mask:04X}");
 
         if set_mask != 0 {
             self.write_gpio_register_masked(group, reg_set, set_mask)?;
@@ -1226,7 +1217,7 @@ impl Xr2280x {
         self.check_gpio_group_support(group)?;
         let reg_state = self.get_gpio_reg_for_group(group, consts::edge::REG_STATE_0);
         let value = self.read_gpio_register_masked(group, reg_state)?;
-        trace!("Read {:?} state: 0x{:04X}", group, value);
+        trace!("Read {group:?} state: 0x{value:04X}");
         Ok(value)
     }
 
@@ -1239,10 +1230,7 @@ impl Xr2280x {
         let reg_up = self.get_gpio_reg_for_group(group, consts::edge::REG_PULL_UP_0);
         let reg_down = self.get_gpio_reg_for_group(group, consts::edge::REG_PULL_DOWN_0);
 
-        debug!(
-            "Setting {:?} pins (mask=0x{:04X}) pull to {:?}",
-            group, mask, pull
-        );
+        debug!("Setting {group:?} pins (mask=0x{mask:04X}) pull to {pull:?}");
 
         match pull {
             GpioPull::None => {
@@ -1286,10 +1274,7 @@ impl Xr2280x {
         } else {
             current & !mask
         };
-        debug!(
-            "Setting {:?} pins (mask=0x{:04X}) open-drain to {}",
-            group, mask, enable
-        );
+        debug!("Setting {group:?} pins (mask=0x{mask:04X}) open-drain to {enable}");
         self.write_gpio_register_masked(group, reg_od, new_value)?;
         Ok(())
     }
@@ -1310,10 +1295,7 @@ impl Xr2280x {
         } else {
             current & !mask
         };
-        debug!(
-            "Setting {:?} pins (mask=0x{:04X}) tri-state to {}",
-            group, mask, enable
-        );
+        debug!("Setting {group:?} pins (mask=0x{mask:04X}) tri-state to {enable}");
         self.write_gpio_register_masked(group, reg_ts, new_value)?;
         Ok(())
     }
@@ -1361,7 +1343,7 @@ impl Xr2280x {
             Error::Hid(hid_err) => gpio_register_read_error(
                 pin.number(),
                 register,
-                format!("HID communication error: {}", hid_err),
+                format!("HID communication error: {hid_err}"),
             ),
             Error::InvalidReport(_) => gpio_register_read_error(
                 pin.number(),
@@ -1379,7 +1361,7 @@ impl Xr2280x {
                 Error::Hid(hid_err) => gpio_register_write_error(
                     pin.number(),
                     register,
-                    format!("HID communication error: {}", hid_err),
+                    format!("HID communication error: {hid_err}"),
                 ),
                 Error::InvalidReport(_) => gpio_register_write_error(
                     pin.number(),
@@ -1396,18 +1378,12 @@ impl Xr2280x {
             Error::Hid(hid_err) => gpio_register_read_error(
                 group as u8,
                 register,
-                format!(
-                    "HID communication error for GPIO group {:?}: {}",
-                    group, hid_err
-                ),
+                format!("HID communication error for GPIO group {group:?}: {hid_err}"),
             ),
             Error::InvalidReport(_) => gpio_register_read_error(
                 group as u8, // Use group index as pseudo-pin for error context
                 register,
-                format!(
-                    "Invalid HID report for GPIO group {:?} - check device connection",
-                    group
-                ),
+                format!("Invalid HID report for GPIO group {group:?} - check device connection and power"),
             ),
             _ => e, // Pass through other error types unchanged
         })
@@ -1425,12 +1401,12 @@ impl Xr2280x {
                 Error::Hid(hid_err) => gpio_register_write_error(
                     group as u8,
                     register,
-                    format!("HID communication error for GPIO group {:?}: {}", group, hid_err),
+                    format!("HID communication error for GPIO group {group:?}: {hid_err}"),
                 ),
                 Error::InvalidReport(_) => gpio_register_write_error(
                     group as u8, // Use group index as pseudo-pin for error context
                     register,
-                    format!("Invalid HID report for GPIO group {:?} - check device connection and power", group),
+                    format!("Invalid HID report for GPIO group {group:?} - check device connection and power"),
                 ),
                 _ => e, // Pass through other error types unchanged
             })

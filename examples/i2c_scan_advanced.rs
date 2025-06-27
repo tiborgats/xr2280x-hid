@@ -13,7 +13,7 @@ fn main() -> Result<()> {
     let device = match xr2280x_hid::Xr2280x::device_open_first(&hid_api) {
         Ok(dev) => dev,
         Err(e) => {
-            eprintln!("Error opening device: {}", e);
+            eprintln!("Error opening device: {e}");
             eprintln!(
                 "Ensure device is connected and permissions are set (e.g., udev rules on Linux)."
             );
@@ -54,7 +54,7 @@ fn main() -> Result<()> {
         }
 
         if found {
-            print!("{:02X} ", addr);
+            print!("{addr:02X} ");
         } else {
             print!("-- ");
         }
@@ -67,7 +67,7 @@ fn main() -> Result<()> {
         // Show progress bar occasionally
         if idx % 32 == 0 || idx == total - 1 {
             let progress = (idx + 1) as f32 / total as f32 * 100.0;
-            eprint!("\rProgress: [{:>3.0}%] ", progress);
+            eprint!("\rProgress: [{progress:>3.0}%] ");
 
             // Simple progress bar
             let bar_width = 30;

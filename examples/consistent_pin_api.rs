@@ -74,9 +74,9 @@ fn setup_gpio_interrupts(device: &Xr2280x) -> Result<()> {
             // Enable interrupts on both edges
             device.gpio_configure_interrupt(pin, true, true, true)?;
 
-            info!("✅ Configured GPIO pin {} for interrupts", pin_num);
+            info!("✅ Configured GPIO pin {pin_num} for interrupts");
         } else {
-            warn!("⚠️  Failed to create GpioPin for pin {}", pin_num);
+            warn!("⚠️  Failed to create GpioPin for pin {pin_num}");
         }
     }
 
@@ -121,7 +121,7 @@ fn demonstrate_consistent_pin_api(device: &Xr2280x) -> Result<()> {
                                 // (no conversion from u8 to GpioPin required!)
                                 match device.gpio_read(pin) {
                                     Ok(level) => {
-                                        info!("     Current level: {:?}", level);
+                                        info!("     Current level: {level:?}");
 
                                         // Demonstrate edge validation
                                         let edge_matches = matches!(
@@ -156,7 +156,7 @@ fn demonstrate_consistent_pin_api(device: &Xr2280x) -> Result<()> {
                         }
                     }
                     Err(e) => {
-                        error!("❌ Failed to parse interrupt pins: {}", e);
+                        error!("❌ Failed to parse interrupt pins: {e}");
                     }
                 }
             }
@@ -165,7 +165,7 @@ fn demonstrate_consistent_pin_api(device: &Xr2280x) -> Result<()> {
                 continue;
             }
             Err(e) => {
-                error!("❌ Failed to read interrupt report: {}", e);
+                error!("❌ Failed to read interrupt report: {e}");
                 break;
             }
         }
@@ -211,11 +211,11 @@ fn display_monitoring_summary(pin_event_counts: &HashMap<u8, usize>) {
     } else {
         info!("   Events detected on {} pins:", pin_event_counts.len());
         for (&pin_num, &count) in pin_event_counts {
-            info!("     Pin {}: {} events", pin_num, count);
+            info!("     Pin {pin_num}: {count} events");
         }
 
         let total_events: usize = pin_event_counts.values().sum();
-        info!("   Total events: {}", total_events);
+        info!("   Total events: {total_events}");
     }
 
     info!("✨ API Improvements Demonstrated:");

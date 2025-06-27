@@ -610,10 +610,7 @@ impl Xr2280x {
         match device.send_feature_report(&buf) {
             Ok(_) => Ok(()), // Treat any Ok as success
             Err(e) => {
-                trace!(
-                    "send_feature_report error for register 0x{:04X}: {}",
-                    reg_addr, e
-                );
+                trace!("send_feature_report error for register 0x{reg_addr:04X}: {e}");
                 Err(Error::Hid(e))
             }
         }
@@ -642,10 +639,7 @@ impl Xr2280x {
         match device.send_feature_report(&buf) {
             Ok(_) => Ok(()), // Treat any Ok as success
             Err(e) => {
-                trace!(
-                    "send_feature_report error while setting read address: {}",
-                    e
-                );
+                trace!("send_feature_report error while setting read address: {e}");
                 Err(Error::Hid(e))
             }
         }
@@ -665,7 +659,7 @@ impl Xr2280x {
 
         let mut buf = [0u8; 3];
         buf[read_register_offsets::REPORT_ID] = consts::REPORT_ID_READ_HID_REGISTER;
-        trace!("Reading Feature Report (Read Reg Addr {:04X})", reg_addr);
+        trace!("Reading Feature Report (Read Reg Addr {reg_addr:04X})");
         match device.get_feature_report(&mut buf) {
             Ok(len) if len == buf.len() => {
                 if buf[read_register_offsets::REPORT_ID] != consts::REPORT_ID_READ_HID_REGISTER {
@@ -682,7 +676,7 @@ impl Xr2280x {
                     buf[read_register_offsets::VALUE_LOW],
                     buf[read_register_offsets::VALUE_HIGH],
                 ]);
-                trace!("Read Reg 0x{:04X} = 0x{:04X}", reg_addr, value);
+                trace!("Read Reg 0x{reg_addr:04X} = 0x{value:04X}");
                 Ok(value)
             }
             Ok(len) => {
@@ -695,10 +689,7 @@ impl Xr2280x {
                 Err(Error::InvalidReport(len))
             }
             Err(e) => {
-                trace!(
-                    "get_feature_report error for register 0x{:04X}: {}",
-                    reg_addr, e
-                );
+                trace!("get_feature_report error for register 0x{reg_addr:04X}: {e}");
                 Err(Error::Hid(e))
             }
         }

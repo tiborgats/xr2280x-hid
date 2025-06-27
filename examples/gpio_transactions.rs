@@ -76,19 +76,13 @@ fn basic_transaction_demo(device: &Xr2280x, pins: &[GpioPin]) -> xr2280x_hid::Re
 
     // Commit all changes at once
     let hid_transactions = transaction.commit()?;
-    println!(
-        "✅ Applied all changes with {} HID transactions",
-        hid_transactions
-    );
+    println!("✅ Applied all changes with {hid_transactions} HID transactions");
 
     // Create a new transaction for the next operations
     let mut transaction = device.gpio_transaction();
     transaction.set_all_low(&pins[0..4])?;
     let hid_transactions = transaction.commit()?;
-    println!(
-        "✅ Reset all pins with {} HID transactions",
-        hid_transactions
-    );
+    println!("✅ Reset all pins with {hid_transactions} HID transactions");
 
     Ok(())
 }
@@ -106,10 +100,7 @@ fn method_chaining_demo(device: &Xr2280x, pins: &[GpioPin]) -> xr2280x_hid::Resu
         .with_high(pins[4])?
         .commit()?;
 
-    println!(
-        "✅ Chained operations completed with {} HID transactions",
-        hid_transactions
-    );
+    println!("✅ Chained operations completed with {hid_transactions} HID transactions");
 
     Ok(())
 }
@@ -118,10 +109,7 @@ fn method_chaining_demo(device: &Xr2280x, pins: &[GpioPin]) -> xr2280x_hid::Resu
 fn performance_comparison_demo(device: &Xr2280x, pins: &[GpioPin]) -> xr2280x_hid::Result<()> {
     const ITERATIONS: usize = 10;
 
-    println!(
-        "Comparing individual operations vs transactions ({} iterations)...",
-        ITERATIONS
-    );
+    println!("Comparing individual operations vs transactions ({ITERATIONS} iterations)...");
 
     // Test individual operations
     let start = Instant::now();
@@ -157,12 +145,10 @@ fn performance_comparison_demo(device: &Xr2280x, pins: &[GpioPin]) -> xr2280x_hi
 
     println!("📊 Performance Results:");
     println!(
-        "  Individual operations: {:?} ({} HID transactions)",
-        individual_time, individual_transactions
+        "  Individual operations: {individual_time:?} ({individual_transactions} HID transactions)"
     );
     println!(
-        "  Transaction operations: {:?} ({} HID transactions)",
-        transaction_time, total_hid_transactions
+        "  Transaction operations: {transaction_time:?} ({total_hid_transactions} HID transactions)"
     );
     println!(
         "  🚀 Speedup: {:.1}x faster, {:.1}x fewer HID transactions",
@@ -193,7 +179,7 @@ fn bitbang_protocol_demo(device: &Xr2280x, pins: &[GpioPin]) -> xr2280x_hid::Res
 
     // Simulate sending a byte (0xA5 = 10100101)
     let data_byte = 0xA5u8;
-    println!("Sending byte: 0x{:02X} ({:08b})", data_byte, data_byte);
+    println!("Sending byte: 0x{data_byte:02X} ({data_byte:08b})");
 
     let mut transaction = device.gpio_transaction();
 
@@ -201,7 +187,7 @@ fn bitbang_protocol_demo(device: &Xr2280x, pins: &[GpioPin]) -> xr2280x_hid::Res
     transaction.set_low(cs_pin)?;
     transaction.set_low(clk_pin)?;
     let hid_count = transaction.commit()?;
-    println!("🔽 CS asserted with {} HID transactions", hid_count);
+    println!("🔽 CS asserted with {hid_count} HID transactions");
 
     // Send each bit with clock cycles
     for bit_pos in (0..8).rev() {
@@ -222,10 +208,7 @@ fn bitbang_protocol_demo(device: &Xr2280x, pins: &[GpioPin]) -> xr2280x_hid::Res
         transaction.set_high(clk_pin)?;
 
         let hid_count = transaction.commit()?;
-        println!(
-            "  Bit {}: {} (with {} HID transactions)",
-            bit_pos, bit_value, hid_count
-        );
+        println!("  Bit {bit_pos}: {bit_value} (with {hid_count} HID transactions)");
     }
 
     // End transmission - CS high, clock low
@@ -234,7 +217,7 @@ fn bitbang_protocol_demo(device: &Xr2280x, pins: &[GpioPin]) -> xr2280x_hid::Res
     transaction.set_low(clk_pin)?;
     transaction.set_low(data_pin)?;
     let hid_count = transaction.commit()?;
-    println!("🔼 CS deasserted with {} HID transactions", hid_count);
+    println!("🔼 CS deasserted with {hid_count} HID transactions");
 
     println!("✅ Bit-banging protocol completed efficiently!");
 
@@ -271,7 +254,7 @@ fn led_matrix_demo(device: &Xr2280x, pins: &[GpioPin]) -> xr2280x_hid::Result<()
         }
 
         let hid_count = transaction.commit()?;
-        println!("  ✅ Applied pattern with {} HID transactions", hid_count);
+        println!("  ✅ Applied pattern with {hid_count} HID transactions");
 
         // In a real application, you might add a delay here
         // std::thread::sleep(std::time::Duration::from_millis(500));

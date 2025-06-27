@@ -79,24 +79,20 @@ fn test_i2c_presence_check() -> Result<()> {
     // Use constants via the re-exported flags module
     let i2c_flags = flags::i2c::START_BIT | flags::i2c::STOP_BIT;
 
-    println!("Checking for device at {}...", known_good_addr);
+    println!("Checking for device at {known_good_addr}...");
     match device.i2c_transfer_raw(known_good_addr, None, None, i2c_flags, Some(100)) {
-        Ok(_) => println!("Device found at {} (ACK)", known_good_addr),
-        Err(xr2280x_hid::Error::I2cNack { .. }) => panic!(
-            "Device NOT found at {} (NACK), but expected.",
-            known_good_addr
-        ),
+        Ok(_) => println!("Device found at {known_good_addr} (ACK)"),
+        Err(xr2280x_hid::Error::I2cNack { .. }) => {
+            panic!("Device NOT found at {known_good_addr} (NACK), but expected.")
+        }
         Err(e) => return Err(e),
     }
 
-    println!("Checking for device at {}...", known_bad_addr);
+    println!("Checking for device at {known_bad_addr}...");
     match device.i2c_transfer_raw(known_bad_addr, None, None, i2c_flags, Some(100)) {
-        Ok(_) => panic!(
-            "Device found at {} (ACK), but NOT expected.",
-            known_bad_addr
-        ),
+        Ok(_) => panic!("Device found at {known_bad_addr} (ACK), but NOT expected."),
         Err(xr2280x_hid::Error::I2cNack { .. }) => {
-            println!("Device not found at {} (NACK) as expected.", known_bad_addr)
+            println!("Device not found at {known_bad_addr} (NACK) as expected.")
         }
         Err(e) => return Err(e),
     }

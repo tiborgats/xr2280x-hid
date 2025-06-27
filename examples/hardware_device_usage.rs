@@ -75,7 +75,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Set I2C speed
     match hardware_device.i2c_set_speed_khz(100) {
         Ok(()) => println!("✓ I2C speed set to 100kHz"),
-        Err(e) => println!("✗ Failed to set I2C speed: {}", e),
+        Err(e) => println!("✗ Failed to set I2C speed: {e}"),
     }
 
     // Scan for I2C devices
@@ -85,13 +85,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             if devices.is_empty() {
                 println!("  No I2C devices found on the bus");
             } else {
-                println!("  Found {} I2C device(s):", devices.len());
+                let device_count = devices.len();
+                println!("  Found {device_count} I2C device(s):");
                 for addr in devices {
-                    println!("    0x{:02X}", addr);
+                    println!("    0x{addr:02X}");
                 }
             }
         }
-        Err(e) => println!("✗ I2C scan failed: {}", e),
+        Err(e) => println!("✗ I2C scan failed: {e}"),
     }
 
     // Example I2C communication (with a hypothetical device at 0x50)
@@ -101,13 +102,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut read_buffer = [0u8; 4];
     match hardware_device.i2c_read_7bit(0x50, &mut read_buffer) {
         Ok(()) => {
-            println!("✓ Successfully read from 0x50: {:02X?}", read_buffer);
+            println!("✓ Successfully read from 0x50: {read_buffer:02X?}");
         }
         Err(e) => {
-            println!(
-                "✗ Failed to read from 0x50: {} (this is normal if no device is connected)",
-                e
-            );
+            println!("✗ Failed to read from 0x50: {e} (this is normal if no device is connected)");
         }
     }
 
@@ -127,7 +125,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             hardware_device.gpio_set_direction(led_pin, GpioDirection::Output)?;
             println!("✓ Pin 0 configured as output (LED)");
         }
-        Err(e) => println!("✗ Failed to configure pin 0: {}", e),
+        Err(e) => println!("✗ Failed to configure pin 0: {e}"),
     }
 
     match hardware_device.gpio_assign_to_edge(button_pin) {
@@ -135,7 +133,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             hardware_device.gpio_set_direction(button_pin, GpioDirection::Input)?;
             println!("✓ Pin 1 configured as input (button)");
         }
-        Err(e) => println!("✗ Failed to configure pin 1: {}", e),
+        Err(e) => println!("✗ Failed to configure pin 1: {e}"),
     }
 
     // GPIO control demonstration
@@ -143,34 +141,36 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     for i in 0..5 {
         // Set LED on
         if let Err(e) = hardware_device.gpio_write(led_pin, GpioLevel::High) {
-            println!("✗ Failed to set LED high: {}", e);
+            println!("✗ Failed to set LED high: {e}");
         } else {
             print!("LED ON  ");
         }
 
         // Read button state
         match hardware_device.gpio_read(button_pin) {
-            Ok(level) => print!("Button: {:?}  ", level),
-            Err(e) => print!("Button read error: {}  ", e),
+            Ok(level) => print!("Button: {level:?}  "),
+            Err(e) => print!("Button read error: {e}  "),
         }
 
-        println!("(iteration {})", i + 1);
+        let iteration = i + 1;
+        println!("(iteration {iteration})");
         sleep(Duration::from_millis(500));
 
         // Set LED off
         if let Err(e) = hardware_device.gpio_write(led_pin, GpioLevel::Low) {
-            println!("✗ Failed to set LED low: {}", e);
+            println!("✗ Failed to set LED low: {e}");
         } else {
             print!("LED OFF ");
         }
 
         // Read button state again
         match hardware_device.gpio_read(button_pin) {
-            Ok(level) => print!("Button: {:?}  ", level),
-            Err(e) => print!("Button read error: {}  ", e),
+            Ok(level) => print!("Button: {level:?}  "),
+            Err(e) => print!("Button read error: {e}  "),
         }
 
-        println!("(iteration {})", i + 1);
+        let iteration = i + 1;
+        println!("(iteration {iteration})");
         sleep(Duration::from_millis(500));
     }
 
@@ -217,7 +217,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             hardware_device.pwm_control(PwmChannel::Pwm0, false, PwmCommand::Idle)?;
             println!("✓ PWM stopped");
         }
-        Err(e) => println!("✗ Failed to configure PWM: {}", e),
+        Err(e) => println!("✗ Failed to configure PWM: {e}"),
     }
 
     // 5. Bulk GPIO Operations
@@ -257,7 +257,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         sleep(Duration::from_millis(200));
                         println!(" ✓");
                     }
-                    Err(e) => println!("  ✗ Failed to write pattern {}: {}", pattern, e),
+                    Err(e) => println!("  ✗ Failed to write pattern {pattern}: {e}"),
                 }
             }
 
@@ -265,7 +265,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             hardware_device.gpio_write_masked(GpioGroup::Group0, pin_mask, 0)?;
             println!("✓ All LEDs turned off");
         }
-        Err(e) => println!("✗ Failed to configure bulk GPIO: {}", e),
+        Err(e) => println!("✗ Failed to configure bulk GPIO: {e}"),
     }
 
     // 6. Demonstrate unified hardware device benefits

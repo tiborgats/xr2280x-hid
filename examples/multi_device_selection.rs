@@ -44,27 +44,27 @@ fn main() -> Result<()> {
     println!("\n2. Opening device by index...");
     match Xr2280x::open_by_index(&hid_api, 0) {
         Ok(device) => {
-            println!("✓ Successfully opened device at index 0");
+            println!("✓ Successfully opened device by index");
             let info = device.get_device_info();
-            println!("  Device info: {:?}", info);
+            println!("  Device info: {info:?}");
             println!("  Capabilities: {:?}", device.get_capabilities());
         }
         Err(e) => {
-            println!("✗ Failed to open device at index 0: {}", e);
+            println!("✗ Failed to open device at index 0: {e}");
         }
     }
 
     // Method 3: Open by serial number (if available)
     if let Some(serial) = &device_infos[0].serial_number {
-        println!("\n3. Opening device by serial number '{}'...", serial);
+        println!("\n3. Opening device by serial number '{serial}'...");
         match Xr2280x::open_by_serial(&hid_api, serial) {
             Ok(device) => {
                 println!("✓ Successfully opened device by serial number");
                 let info = device.get_device_info();
-                println!("  Device info: {:?}", info);
+                println!("  Device info: {info:?}");
             }
             Err(e) => {
-                println!("✗ Failed to open device by serial: {}", e);
+                println!("✗ Failed to open device by serial: {e}");
             }
         }
     } else {
@@ -77,12 +77,12 @@ fn main() -> Result<()> {
         let device_path = &i2c_interface.path;
         match Xr2280x::open_by_path(&hid_api, device_path) {
             Ok(device) => {
-                println!("✓ Successfully opened device by I2C path");
+                println!("✓ Successfully opened device by path");
                 let info = device.get_device_info();
-                println!("  Device info: {:?}", info);
+                println!("  Device info: {info:?}");
             }
             Err(e) => {
-                println!("✗ Failed to open device by path: {}", e);
+                println!("✗ Failed to open device by path: {e}");
             }
         }
     } else {
@@ -96,7 +96,7 @@ fn main() -> Result<()> {
         if let Some(device) = selected_device {
             println!("✓ Successfully opened selected device");
             let info = device.get_device_info();
-            println!("  Device info: {:?}", info);
+            println!("  Device info: {info:?}");
 
             // Demonstrate a simple operation
             demonstrate_device_operation(&device)?;
@@ -112,18 +112,18 @@ fn main() -> Result<()> {
     match Xr2280x::open_by_serial(&hid_api, "NONEXISTENT_SERIAL") {
         Ok(_) => println!("Unexpected: Found device with fake serial"),
         Err(Error::DeviceNotFoundBySerial { serial, message }) => {
-            println!("✓ Expected error for fake serial '{}': {}", serial, message);
+            println!("✓ Expected error for fake serial '{serial}': {message}");
         }
-        Err(e) => println!("Unexpected error type: {}", e),
+        Err(e) => println!("Unexpected error type: {e}"),
     }
 
     // Try to open out-of-range index
     match Xr2280x::open_by_index(&hid_api, 999) {
         Ok(_) => println!("Unexpected: Found device at index 999"),
         Err(Error::DeviceNotFoundByIndex { index, message }) => {
-            println!("✓ Expected error for index {}: {}", index, message);
+            println!("✓ Expected error for index {index}: {message}");
         }
-        Err(e) => println!("Unexpected error type: {}", e),
+        Err(e) => println!("Unexpected error type: {e}"),
     }
 
     println!("\n=== Demo Complete ===");
@@ -172,7 +172,7 @@ fn interactive_device_selection(
                 match Xr2280x::device_open(hid_api, &device_infos[index]) {
                     Ok(device) => return Ok(Some(device)),
                     Err(e) => {
-                        println!("Error opening device at index {}: {}", index, e);
+                        println!("Error opening device at index {index}: {e}");
                         continue;
                     }
                 }
@@ -198,7 +198,7 @@ fn demonstrate_device_operation(device: &Xr2280x) -> Result<()> {
         println!("This is an I2C interface. Setting bus speed to 100kHz...");
         match device.i2c_set_speed_khz(100) {
             Ok(()) => println!("✓ I2C speed set successfully"),
-            Err(e) => println!("✗ Failed to set I2C speed: {}", e),
+            Err(e) => println!("✗ Failed to set I2C speed: {e}"),
         }
     }
 
@@ -212,11 +212,8 @@ fn demonstrate_device_operation(device: &Xr2280x) -> Result<()> {
         use xr2280x_hid::gpio::GpioPin;
         if let Ok(pin0) = GpioPin::new(0) {
             match device.gpio_read(pin0) {
-                Ok(level) => println!("✓ GPIO pin 0 current level: {:?}", level),
-                Err(e) => println!(
-                    "Note: Could not read GPIO pin 0 (may need configuration): {}",
-                    e
-                ),
+                Ok(level) => println!("✓ GPIO pin 0 current level: {level:?}"),
+                Err(e) => println!("Note: Could not read GPIO pin 0 (may need configuration): {e}"),
             }
         }
     }

@@ -57,10 +57,10 @@ fn test_normal_operation(device: &Xr2280x) -> Result<()> {
     match device.i2c_scan_default() {
         Ok(devices) => {
             let duration = start.elapsed();
-            println!("✓ Scan completed in {:?}", duration);
+            println!("✓ Scan completed in {duration:?}");
             println!("  Found {} devices:", devices.len());
             for addr in devices {
-                println!("    - 0x{:02X}", addr);
+                println!("    - 0x{addr:02X}");
             }
 
             if duration.as_secs() > 5 {
@@ -72,7 +72,7 @@ fn test_normal_operation(device: &Xr2280x) -> Result<()> {
         }
         Err(Error::I2cTimeout { address }) => {
             let duration = start.elapsed();
-            println!("✗ Stuck bus detected at {} in {:?}", address, duration);
+            println!("✗ Stuck bus detected at {address} in {duration:?}");
             println!("  CAUSE: Unpowered device holding I2C lines low, or very slow device");
             println!("  This is EXPECTED if you have unpowered I2C devices connected");
 
@@ -86,7 +86,7 @@ fn test_normal_operation(device: &Xr2280x) -> Result<()> {
         }
         Err(Error::I2cArbitrationLost { address }) => {
             let duration = start.elapsed();
-            println!("✗ Bus arbitration lost at {} in {:?}", address, duration);
+            println!("✗ Bus arbitration lost at {address} in {duration:?}");
             println!("  CAUSE: Multiple I2C masters competing or electrical interference");
             println!("  SOLUTIONS:");
             println!("    - Disconnect other I2C controllers");
@@ -96,7 +96,7 @@ fn test_normal_operation(device: &Xr2280x) -> Result<()> {
             return Err(Error::I2cArbitrationLost { address });
         }
         Err(e) => {
-            println!("✗ Unexpected error: {}", e);
+            println!("✗ Unexpected error: {e}");
             return Err(e);
         }
     }
@@ -123,7 +123,7 @@ fn test_ultra_fast_scanning(device: &Xr2280x) -> Result<()> {
         |addr, found, idx, total| {
             scan_progress = idx + 1;
             if found {
-                println!("  Quick device found at 0x{:02X}", addr);
+                println!("  Quick device found at 0x{addr:02X}");
             }
             if idx % 20 == 0 || found {
                 println!("  Progress: {}/{} addresses", idx + 1, total);
@@ -132,7 +132,7 @@ fn test_ultra_fast_scanning(device: &Xr2280x) -> Result<()> {
     ) {
         Ok(devices) => {
             let duration = start.elapsed();
-            println!("✓ Ultra-fast scan completed in {:?}", duration);
+            println!("✓ Ultra-fast scan completed in {duration:?}");
             println!(
                 "  Scanned {} addresses, found {} devices",
                 scan_progress,
@@ -145,11 +145,8 @@ fn test_ultra_fast_scanning(device: &Xr2280x) -> Result<()> {
         }
         Err(Error::I2cTimeout { address }) => {
             let duration = start.elapsed();
-            println!(
-                "✗ Stuck bus detected at {} after scanning {} addresses",
-                address, scan_progress
-            );
-            println!("  Detection time: {:?}", duration);
+            println!("✗ Stuck bus detected at {address} after scanning {scan_progress} addresses");
+            println!("  Detection time: {duration:?}");
             println!("  MEANING: I2C bus is stuck (device holding lines low)");
 
             if duration.as_secs() > 3 {
@@ -161,13 +158,13 @@ fn test_ultra_fast_scanning(device: &Xr2280x) -> Result<()> {
         }
         Err(Error::I2cArbitrationLost { address }) => {
             let duration = start.elapsed();
-            println!("✗ Bus arbitration lost at {} in {:?}", address, duration);
+            println!("✗ Bus arbitration lost at {address} in {duration:?}");
             println!("  MEANING: Multiple masters or electrical interference detected");
             println!("  TRY: Disconnect other I2C devices and check connections");
             return Err(Error::I2cArbitrationLost { address });
         }
         Err(e) => {
-            println!("✗ Unexpected error: {}", e);
+            println!("✗ Unexpected error: {e}");
             return Err(e);
         }
     }
@@ -183,7 +180,7 @@ fn test_timeout_variations(device: &Xr2280x) -> Result<()> {
     let test_addresses = [0x48, 0x50, 0x68, 0x77]; // Common sensor/EEPROM addresses
 
     for &addr in &test_addresses {
-        println!("Testing address 0x{:02X}:", addr);
+        println!("Testing address 0x{addr:02X}:");
 
         // Test with different timeouts
         let timeouts_to_test = [
@@ -199,15 +196,15 @@ fn test_timeout_variations(device: &Xr2280x) -> Result<()> {
             match device.i2c_read_7bit_with_timeout(addr, &mut test_buffer, timeout_ms) {
                 Ok(_) => {
                     let duration = start.elapsed();
-                    println!("  ✓ {} - Device responded in {:?}", name, duration);
+                    println!("  ✓ {name} - Device responded in {duration:?}");
                 }
                 Err(Error::I2cNack { .. }) => {
                     let duration = start.elapsed();
-                    println!("  - {} - No device (NACK in {:?})", name, duration);
+                    println!("  - {name} - No device (NACK in {duration:?})");
                 }
                 Err(Error::I2cTimeout { .. }) => {
                     let duration = start.elapsed();
-                    println!("  ✗ {} - Timeout in {:?}", name, duration);
+                    println!("  ✗ {name} - Timeout in {duration:?}");
                     println!("    MEANING: Device too slow or bus stuck");
 
                     // For very short timeouts, we expect quick failures
@@ -217,11 +214,11 @@ fn test_timeout_variations(device: &Xr2280x) -> Result<()> {
                 }
                 Err(Error::I2cArbitrationLost { .. }) => {
                     let duration = start.elapsed();
-                    println!("  ✗ {} - Arbitration lost in {:?}", name, duration);
+                    println!("  ✗ {name} - Arbitration lost in {duration:?}");
                     println!("    MEANING: Bus contention detected");
                 }
                 Err(e) => {
-                    println!("  ✗ {} - Error: {}", name, e);
+                    println!("  ✗ {name} - Error: {e}");
                 }
             }
         }
@@ -241,7 +238,7 @@ fn test_timeout_stress(device: &Xr2280x) -> Result<()> {
     let num_iterations = 5;
 
     for i in 1..=num_iterations {
-        println!("Iteration {}/{}:", i, num_iterations);
+        println!("Iteration {i}/{num_iterations}:");
         let start = Instant::now();
 
         match device.i2c_scan_with_progress_and_timeout(
@@ -262,7 +259,7 @@ fn test_timeout_stress(device: &Xr2280x) -> Result<()> {
             Err(Error::I2cTimeout { address }) => {
                 let duration = start.elapsed();
                 total_time += duration;
-                println!("  ✗ Stuck bus at {} in {:?}", address, duration);
+                println!("  ✗ Stuck bus at {address} in {duration:?}");
                 println!("    MEANING: I2C bus stuck (unpowered device holding lines)");
 
                 if duration.as_secs() > 2 {
@@ -274,19 +271,19 @@ fn test_timeout_stress(device: &Xr2280x) -> Result<()> {
             }
             Err(Error::I2cArbitrationLost { address }) => {
                 let duration = start.elapsed();
-                println!("  ✗ Arbitration lost at {} in {:?}", address, duration);
+                println!("  ✗ Arbitration lost at {address} in {duration:?}");
                 println!("    MEANING: Bus interference or multiple masters");
                 break;
             }
             Err(e) => {
-                println!("  ✗ Error: {}", e);
+                println!("  ✗ Error: {e}");
                 break;
             }
         }
     }
 
     let avg_time = total_time / num_iterations;
-    println!("Average scan time: {:?}", avg_time);
+    println!("Average scan time: {avg_time:?}");
 
     if avg_time.as_millis() > 500 {
         println!("WARNING: Average scan time seems high");

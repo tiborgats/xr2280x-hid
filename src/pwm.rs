@@ -96,16 +96,12 @@ impl Xr2280x {
                 return Err(pwm_parameter_error(
                     channel as u8,
                     format!(
-                        "PWM period units must be 1-4095 (got high={}, low={})",
-                        high_units, low_units
+                        "PWM period units must be 1-4095 (got high={high_units}, low={low_units})"
                     ),
                 ));
             }
         }
-        debug!(
-            "Setting {:?} periods: high={} units, low={} units",
-            channel, high_units, low_units
-        );
+        debug!("Setting {channel:?} periods: high={high_units} units, low={low_units} units");
         self.write_pwm_register(channel, reg_high, high_units)?;
         self.write_pwm_register(channel, reg_low, low_units)?;
         Ok(())
@@ -126,10 +122,7 @@ impl Xr2280x {
         };
         let high_units = self.read_pwm_register(channel, reg_high)?;
         let low_units = self.read_pwm_register(channel, reg_low)?;
-        trace!(
-            "Read {:?} periods: high={} units, low={} units",
-            channel, high_units, low_units
-        );
+        trace!("Read {channel:?} periods: high={high_units} units, low={low_units} units");
         Ok((high_units, low_units))
     }
 
@@ -211,8 +204,7 @@ impl Xr2280x {
             | enable_bits
             | cmd_shifted;
         debug!(
-            "Setting {:?}: enable={}, command={:?} (ctrl=0x{:04X})",
-            channel, enable, command, new_value
+            "Setting {channel:?}: enable={enable}, command={command:?} (ctrl=0x{new_value:04X})"
         );
         self.write_pwm_register(channel, reg, new_value)?;
         Ok(())
@@ -235,10 +227,7 @@ impl Xr2280x {
             consts::edge::pwm_ctrl::CMD_FREE_RUN => PwmCommand::FreeRun,
             _ => PwmCommand::Undefined(cmd_raw),
         };
-        trace!(
-            "Read {:?} control: enabled={}, command={:?}",
-            channel, enabled, command
-        );
+        trace!("Read {channel:?} control: enabled={enabled}, command={command:?}");
         Ok((enabled, command))
     }
 
@@ -247,16 +236,12 @@ impl Xr2280x {
         self.read_hid_register(register).map_err(|e| match e {
             Error::Hid(hid_err) => pwm_hardware_error(
                 channel as u8,
-                format!(
-                    "HID communication error for register 0x{:04X}: {}",
-                    register, hid_err
-                ),
+                format!("HID communication error for register 0x{register:04X}: {hid_err}"),
             ),
             Error::InvalidReport(_) => pwm_hardware_error(
                 channel as u8,
                 format!(
-                    "Invalid HID report for register 0x{:04X} - check device connection",
-                    register
+                    "Invalid HID report for register 0x{register:04X} - check device connection"
                 ),
             ),
             _ => e, // Pass through other error types unchanged
@@ -269,16 +254,12 @@ impl Xr2280x {
             .map_err(|e| match e {
                 Error::Hid(hid_err) => pwm_hardware_error(
                     channel as u8,
-                    format!(
-                        "HID communication error for register 0x{:04X}: {}",
-                        register, hid_err
-                    ),
+                    format!("HID communication error for register 0x{register:04X}: {hid_err}"),
                 ),
                 Error::InvalidReport(_) => pwm_hardware_error(
                     channel as u8,
                     format!(
-                        "Invalid HID report for register 0x{:04X} - check device connection and power",
-                        register
+                        "Invalid HID report for register 0x{register:04X} - check device connection"
                     ),
                 ),
                 _ => e, // Pass through other error types unchanged

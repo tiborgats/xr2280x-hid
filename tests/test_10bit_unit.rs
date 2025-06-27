@@ -33,27 +33,23 @@ mod tests {
 
                 assert_eq!(
                     first_byte, expected_first,
-                    "Address 0x{:03X}: first byte mismatch. Expected 0x{:02X}, got 0x{:02X}",
-                    addr, expected_first, first_byte
+                    "Address 0x{addr:03X}: first byte mismatch. Expected 0x{expected_first:02X}, got 0x{first_byte:02X}"
                 );
                 assert_eq!(
                     second_byte, expected_second,
-                    "Address 0x{:03X}: second byte mismatch. Expected 0x{:02X}, got 0x{:02X}",
-                    addr, expected_second, second_byte
+                    "Address 0x{addr:03X}: second byte mismatch. Expected 0x{expected_second:02X}, got 0x{second_byte:02X}"
                 );
 
                 // Verify the first byte follows the I2C 10-bit pattern
                 assert_eq!(
                     first_byte & 0xF8,
                     0xF0,
-                    "Address 0x{:03X}: first byte must start with 11110 pattern",
-                    addr
+                    "Address 0x{addr:03X}: first byte must start with 11110 pattern"
                 );
                 assert_eq!(
                     first_byte & 0x01,
                     0x00,
-                    "Address 0x{:03X}: first byte must end with 0 (write bit)",
-                    addr
+                    "Address 0x{addr:03X}: first byte must end with 0 (write bit)"
                 );
             }
         }
@@ -78,8 +74,7 @@ mod tests {
         for addr in 0u16..=0x7F {
             assert!(
                 I2cAddress::new_10bit(addr).is_ok(),
-                "7-bit address 0x{:02X} should be valid as 10-bit",
-                addr
+                "7-bit address 0x{addr:02X} should be valid as 10-bit"
             );
         }
 
@@ -87,23 +82,19 @@ mod tests {
         for addr in 0x80u16..=0xFF {
             assert!(
                 I2cAddress::new_7bit(addr as u8).is_err(),
-                "Address 0x{:03X} should be invalid as 7-bit",
-                addr
+                "Address 0x{addr:03X} should be invalid as 7-bit"
             );
             assert!(
                 I2cAddress::new_10bit(addr).is_ok(),
-                "Address 0x{:03X} should be valid as 10-bit",
-                addr
+                "Address 0x{addr:03X} should be valid as 10-bit"
             );
         }
 
         // Addresses 0x100-0x3FF are only representable as 10-bit (beyond 8-bit range)
         for addr in 0x100u16..=0x3FF {
-            // Cannot test 7-bit for these since they exceed u8 range
             assert!(
                 I2cAddress::new_10bit(addr).is_ok(),
-                "Address 0x{:03X} should be valid as 10-bit",
-                addr
+                "Address 0x{addr:03X} should be valid as 10-bit"
             );
         }
     }
@@ -113,8 +104,8 @@ mod tests {
         let addr_7bit = I2cAddress::new_7bit(0x50).unwrap();
         let addr_10bit = I2cAddress::new_10bit(0x150).unwrap();
 
-        assert_eq!(format!("{}", addr_7bit), "7-bit 0x50");
-        assert_eq!(format!("{}", addr_10bit), "10-bit 0x150");
+        assert_eq!(format!("{addr_7bit}"), "7-bit 0x50");
+        assert_eq!(format!("{addr_10bit}"), "10-bit 0x150");
     }
 
     #[test]
@@ -153,9 +144,9 @@ mod tests {
         for (addr, should_be_valid) in boundary_tests {
             let result = I2cAddress::new_10bit(addr);
             if should_be_valid {
-                assert!(result.is_ok(), "Address 0x{:03X} should be valid", addr);
+                assert!(result.is_ok(), "Address 0x{addr:03X} should be valid");
             } else {
-                assert!(result.is_err(), "Address 0x{:03X} should be invalid", addr);
+                assert!(result.is_err(), "Address 0x{addr:03X} should be invalid");
             }
         }
     }
@@ -182,8 +173,7 @@ mod tests {
 
                 assert_eq!(
                     first_byte, expected_first_byte,
-                    "I2C spec compliance failed for address 0x{:03X}",
-                    addr
+                    "I2C spec compliance failed for address 0x{addr:03X}"
                 );
 
                 // Verify bit pattern matches spec

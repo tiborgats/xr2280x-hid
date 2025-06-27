@@ -110,7 +110,7 @@ fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
                 std::thread::sleep(Duration::from_millis(500));
             }
             Err(e) => {
-                error!("❌ Interrupt monitoring error: {}", e);
+                error!("❌ Interrupt monitoring error: {e}");
                 std::thread::sleep(Duration::from_secs(1));
             }
         }
@@ -138,7 +138,7 @@ fn setup_gpio_interrupts(device: &Xr2280x) -> xr2280x_hid::Result<()> {
             // Enable interrupts on both positive and negative edges
             device.gpio_configure_interrupt(pin, true, true, true)?;
 
-            debug!("✅ Configured GPIO pin {} for interrupts", pin_num);
+            debug!("✅ Configured GPIO pin {pin_num} for interrupts");
         }
     }
 
@@ -197,12 +197,12 @@ fn handle_interrupt_safely(
     let raw_data = device.get_raw_interrupt_data(raw_report);
 
     info!("📊 Raw interrupt data ({} bytes):", raw_data.len());
-    info!("   Hex: {:02X?}", raw_data);
+    info!("   Hex: {raw_data:02X?}");
     info!(
         "   Binary: {}",
         raw_data
             .iter()
-            .map(|b| format!("{:08b}", b))
+            .map(|b| format!("{b:08b}"))
             .collect::<Vec<_>>()
             .join(" ")
     );
@@ -213,17 +213,17 @@ fn handle_interrupt_safely(
         let word2 = u16::from_le_bytes([raw_data[2], raw_data[3]]);
 
         info!("🔍 Pattern Analysis:");
-        info!("   First 16-bit word:  0x{:04X} ({})", word1, word1);
-        info!("   Second 16-bit word: 0x{:04X} ({})", word2, word2);
+        info!("   First 16-bit word:  0x{word1:04X} ({word1})");
+        info!("   Second 16-bit word: 0x{word2:04X} ({word2})");
 
         // Check for obvious patterns that might indicate data validity
         let has_data_pattern = word1 != 0 || word2 != 0;
         let all_bits_set = word1 == 0xFFFF && word2 == 0xFFFF;
         let reasonable_pin_count = word1.count_ones() <= 16 && word2.count_ones() <= 16;
 
-        info!("   Data present: {}", has_data_pattern);
-        info!("   All bits set (suspicious): {}", all_bits_set);
-        info!("   Pin count reasonable: {}", reasonable_pin_count);
+        info!("   Data present: {has_data_pattern}");
+        info!("   All bits set (suspicious): {all_bits_set}");
+        info!("   Pin count reasonable: {reasonable_pin_count}");
     }
 
     // This approach allows custom parsing logic based on actual hardware behavior
@@ -245,7 +245,7 @@ fn handle_interrupt_unsafely(
         match device.parse_gpio_interrupt_report(raw_report) {
             Ok(data) => data,
             Err(e) => {
-                error!("🚨 Unsafe parsing failed: {}", e);
+                error!("🚨 Unsafe parsing failed: {e}");
                 return Err(e);
             }
         }
@@ -305,11 +305,10 @@ fn validate_parsed_interrupt_data(
                     if parsed_level != actual_level {
                         validation_errors += 1;
                         warn!(
-                            "❌ VALIDATION FAILED: Pin {} parsed as {:?} but hardware reads {:?}",
-                            pin_num, parsed_level, actual_level
+                            "❌ VALIDATION FAILED: Pin {pin_num} parsed as {parsed_level:?} but hardware reads {actual_level:?}"
                         );
                     } else {
-                        debug!("✅ Pin {} validation OK: {:?}", pin_num, actual_level);
+                        debug!("✅ Pin {pin_num} validation OK: {actual_level:?}");
                     }
 
                     // Update pin history
@@ -318,7 +317,7 @@ fn validate_parsed_interrupt_data(
                     }
                 }
                 Err(e) => {
-                    debug!("Cannot validate pin {} - read error: {}", pin_num, e);
+                    debug!("Cannot validate pin {pin_num} - read error: {e}");
                 }
             }
         }
@@ -326,15 +325,11 @@ fn validate_parsed_interrupt_data(
 
     // Report validation results
     if validation_errors == 0 && pin_checks > 0 {
-        info!(
-            "✅ VALIDATION PASSED: All {} checked pins match parsed data",
-            pin_checks
-        );
+        info!("✅ VALIDATION PASSED: All {pin_checks} checked pins match parsed data");
         info!("   This suggests the parsing assumptions may be correct");
     } else if validation_errors > 0 {
         error!(
-            "🚨 VALIDATION FAILED: {}/{} pins have incorrect parsed states",
-            validation_errors, pin_checks
+            "🚨 VALIDATION FAILED: {validation_errors}/{pin_checks} pins have incorrect parsed states"
         );
         error!("   The parsing assumptions are likely INCORRECT");
         error!("   Application should NOT trust this interrupt data");
@@ -375,7 +370,7 @@ fn check_interrupt_data_sanity(parsed: &ParsedGpioInterruptReport) -> xr2280x_hi
     if !warnings.is_empty() {
         warn!("🔍 SANITY CHECK WARNINGS:");
         for warning in warnings {
-            warn!("   • {}", warning);
+            warn!("   • {warning}");
         }
     } else {
         info!("✅ Basic sanity checks passed");
@@ -411,7 +406,7 @@ fn handle_interrupt_with_consistent_api(
                     // (no conversion from u8 to GpioPin required!)
                     match device.gpio_read(pin) {
                         Ok(level) => {
-                            info!("     Current level: {:?}", level);
+                            info!("     Current level: {level:?}");
 
                             // Demonstrate edge validation
                             let edge_matches = matches!(
@@ -438,7 +433,7 @@ fn handle_interrupt_with_consistent_api(
 
                     // ERGONOMICS: Can use pin directly with other operations
                     if let Ok(direction) = device.gpio_get_direction(pin) {
-                        info!("     🔧 Pin direction: {:?}", direction);
+                        info!("     🔧 Pin direction: {direction:?}");
                     }
                 }
 
@@ -452,7 +447,7 @@ fn handle_interrupt_with_consistent_api(
             }
         }
         Err(e) => {
-            error!("❌ NEW API: Failed to parse interrupt pins: {}", e);
+            error!("❌ NEW API: Failed to parse interrupt pins: {e}");
         }
     }
 
@@ -473,7 +468,7 @@ fn show_interrupt_summary(pin_history: &HashMap<u8, GpioPinHistory>) {
             active_pins += 1;
             let last_state = history
                 .last_known_state
-                .map(|s| format!("{:?}", s))
+                .map(|s| format!("{s:?}"))
                 .unwrap_or_else(|| "Unknown".to_string());
 
             info!(
@@ -483,10 +478,7 @@ fn show_interrupt_summary(pin_history: &HashMap<u8, GpioPinHistory>) {
         }
     }
 
-    info!(
-        "   Total: {} pins active, {} total state changes",
-        active_pins, total_changes
-    );
+    info!("   Total: {active_pins} pins active, {total_changes} total state changes");
     info!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
     info!("");
 }

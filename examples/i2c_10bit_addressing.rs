@@ -67,8 +67,8 @@ fn demonstrate_address_creation() -> Result<()> {
 
     for addr in valid_addresses {
         match I2cAddress::new_10bit(addr) {
-            Ok(i2c_addr) => println!("  • 0x{:03X} → {}", addr, i2c_addr),
-            Err(e) => println!("  • 0x{:03X} → ERROR: {}", addr, e),
+            Ok(i2c_addr) => println!("  • 0x{addr:03X} → {i2c_addr}"),
+            Err(e) => println!("  • 0x{addr:03X} → ERROR: {e}"),
         }
     }
 
@@ -78,8 +78,8 @@ fn demonstrate_address_creation() -> Result<()> {
 
     for addr in invalid_addresses {
         match I2cAddress::new_10bit(addr) {
-            Ok(i2c_addr) => println!("  • 0x{:03X} → {} (should be invalid!)", addr, i2c_addr),
-            Err(e) => println!("  • 0x{:03X} → Correctly rejected: {}", addr, e),
+            Ok(i2c_addr) => println!("  • 0x{addr:03X} → {i2c_addr} (should be invalid!)"),
+            Err(e) => println!("  • 0x{addr:03X} → Correctly rejected: {e}"),
         }
     }
 
@@ -106,7 +106,7 @@ fn demonstrate_10bit_operations(device: &xr2280x_hid::Xr2280x) -> Result<()> {
     ];
 
     for &addr in &test_addresses {
-        println!("Testing 10-bit address 0x{:03X}:", addr);
+        println!("Testing 10-bit address 0x{addr:03X}:");
 
         // Write operation example
         println!("  📤 Write operation:");
@@ -122,12 +122,11 @@ fn demonstrate_10bit_operations(device: &xr2280x_hid::Xr2280x) -> Result<()> {
             }
             Err(xr2280x_hid::Error::I2cNack { address }) => {
                 println!(
-                    "    🔍 No device at address {} (NACK - normal for unused addresses)",
-                    address
+                    "    🔍 No device at address {address} (NACK - normal for unused addresses)"
                 );
             }
             Err(e) => {
-                println!("    ❌ Error: {}", e);
+                println!("    ❌ Error: {e}");
             }
         }
 
@@ -136,16 +135,15 @@ fn demonstrate_10bit_operations(device: &xr2280x_hid::Xr2280x) -> Result<()> {
         let mut read_buffer = [0u8; 4];
         match device.i2c_read_10bit(addr, &mut read_buffer) {
             Ok(_) => {
-                println!("    ✅ Read successful: {:02X?}", read_buffer);
+                println!("    ✅ Read successful: {read_buffer:02X?}");
             }
             Err(xr2280x_hid::Error::I2cNack { address }) => {
                 println!(
-                    "    🔍 No device at address {} (NACK - normal for unused addresses)",
-                    address
+                    "    🔍 No device at address {address} (NACK - normal for unused addresses)"
                 );
             }
             Err(e) => {
-                println!("    ❌ Error: {}", e);
+                println!("    ❌ Error: {e}");
             }
         }
 
@@ -155,16 +153,15 @@ fn demonstrate_10bit_operations(device: &xr2280x_hid::Xr2280x) -> Result<()> {
         let mut read_data = [0u8; 2];
         match device.i2c_write_read_10bit(addr, &register_addr, &mut read_data) {
             Ok(_) => {
-                println!("    ✅ Write-then-read successful: {:02X?}", read_data);
+                println!("    ✅ Write-then-read successful: {read_data:02X?}");
             }
             Err(xr2280x_hid::Error::I2cNack { address }) => {
                 println!(
-                    "    🔍 No device at address {} (NACK - normal for unused addresses)",
-                    address
+                    "    🔍 No device at address {address} (NACK - normal for unused addresses)"
                 );
             }
             Err(e) => {
-                println!("    ❌ Error: {}", e);
+                println!("    ❌ Error: {e}");
             }
         }
 
@@ -190,9 +187,9 @@ fn demonstrate_address_comparison(device: &xr2280x_hid::Xr2280x) -> Result<()> {
     match device.i2c_write_7bit(test_addr as u8, &write_data) {
         Ok(_) => println!("    ✅ 7-bit write successful"),
         Err(xr2280x_hid::Error::I2cNack { address }) => {
-            println!("    🔍 7-bit: No device at address {} (NACK)", address);
+            println!("    🔍 7-bit: No device at address {address} (NACK)");
         }
-        Err(e) => println!("    ❌ 7-bit error: {}", e),
+        Err(e) => println!("    ❌ 7-bit error: {e}"),
     }
 
     // 10-bit addressing of the same address
@@ -200,9 +197,9 @@ fn demonstrate_address_comparison(device: &xr2280x_hid::Xr2280x) -> Result<()> {
     match device.i2c_write_10bit(test_addr, &write_data) {
         Ok(_) => println!("    ✅ 10-bit write successful"),
         Err(xr2280x_hid::Error::I2cNack { address }) => {
-            println!("    🔍 10-bit: No device at address {} (NACK)", address);
+            println!("    🔍 10-bit: No device at address {address} (NACK)");
         }
-        Err(e) => println!("    ❌ 10-bit error: {}", e),
+        Err(e) => println!("    ❌ 10-bit error: {e}"),
     }
 
     // Demonstrate exclusive 10-bit address
@@ -211,9 +208,9 @@ fn demonstrate_address_comparison(device: &xr2280x_hid::Xr2280x) -> Result<()> {
     match device.i2c_write_10bit(0x150, &write_data) {
         Ok(_) => println!("    ✅ Exclusive 10-bit write successful"),
         Err(xr2280x_hid::Error::I2cNack { address }) => {
-            println!("    🔍 No device at address {} (NACK)", address);
+            println!("    🔍 No device at address {address} (NACK)");
         }
-        Err(e) => println!("    ❌ Error: {}", e),
+        Err(e) => println!("    ❌ Error: {e}"),
     }
 
     println!();
@@ -229,19 +226,19 @@ fn demonstrate_error_handling(device: &xr2280x_hid::Xr2280x) -> Result<()> {
     match device.i2c_read_10bit_with_timeout(0x200, &mut [0u8; 4], 50) {
         Ok(_) => println!("    ✅ Read with custom timeout successful"),
         Err(xr2280x_hid::Error::I2cNack { address }) => {
-            println!("    🔍 No device at address {} (NACK)", address);
+            println!("    🔍 No device at address {address} (NACK)");
         }
         Err(xr2280x_hid::Error::I2cTimeout { address }) => {
-            println!("    ⏰ Timeout reading from address {}", address);
+            println!("    ⏰ Timeout reading from address {address}");
         }
-        Err(e) => println!("    ❌ Error: {}", e),
+        Err(e) => println!("    ❌ Error: {e}"),
     }
 
     // Demonstrate invalid address handling
     println!("\n❌ Invalid address handling:");
     match I2cAddress::new_10bit(0x500) {
         Ok(_) => println!("    ❌ Should have failed validation!"),
-        Err(e) => println!("    ✅ Address validation works: {}", e),
+        Err(e) => println!("    ✅ Address validation works: {e}"),
     }
 
     // Best practices

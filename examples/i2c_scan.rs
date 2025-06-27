@@ -7,7 +7,7 @@ fn main() -> Result<()> {
     let hid_api = HidApi::new()?;
     println!("Opening first XR2280x device...");
     let device = xr2280x_hid::Xr2280x::device_open_first(&hid_api).map_err(|e| {
-        eprintln!("Error opening device: {}", e);
+        eprintln!("Error opening device: {e}");
         eprintln!(
             "Ensure device is connected and permissions are set (e.g., udev rules on Linux)."
         );
@@ -25,11 +25,11 @@ fn main() -> Result<()> {
     match device.i2c_scan_default() {
         Ok(found_devices) => {
             let scan_duration = scan_start.elapsed();
-            println!("✓ Scan completed in {:?}", scan_duration);
+            println!("✓ Scan completed in {scan_duration:?}");
 
             // Print found devices
             for &addr in &found_devices {
-                println!("Device found at 7-bit 0x{:02X}", addr);
+                println!("Device found at 7-bit 0x{addr:02X}");
             }
 
             if found_devices.is_empty() {
@@ -42,7 +42,7 @@ fn main() -> Result<()> {
                     found_devices.len(),
                     found_devices
                         .iter()
-                        .map(|a| format!("0x{:02X}", a))
+                        .map(|a| format!("0x{a:02X}"))
                         .collect::<Vec<String>>()
                         .join(", ")
                 );
@@ -50,8 +50,8 @@ fn main() -> Result<()> {
         }
         Err(Error::I2cTimeout { address }) => {
             let scan_duration = scan_start.elapsed();
-            eprintln!("✗ I2C bus scan failed after {:?}", scan_duration);
-            eprintln!("Stuck bus detected at address {}", address);
+            eprintln!("✗ I2C bus scan failed after {scan_duration:?}");
+            eprintln!("Stuck bus detected at address {address}");
             eprintln!();
             eprintln!("TROUBLESHOOTING:");
             eprintln!("• An unpowered device may be holding I2C lines (SDA/SCL) low");
@@ -63,8 +63,8 @@ fn main() -> Result<()> {
         }
         Err(Error::I2cArbitrationLost { address }) => {
             let scan_duration = scan_start.elapsed();
-            eprintln!("✗ I2C bus scan failed after {:?}", scan_duration);
-            eprintln!("Bus arbitration lost at address {}", address);
+            eprintln!("✗ I2C bus scan failed after {scan_duration:?}");
+            eprintln!("Bus arbitration lost at address {address}");
             eprintln!();
             eprintln!("TROUBLESHOOTING:");
             eprintln!("• Multiple I2C masters may be competing for bus control");
@@ -77,8 +77,8 @@ fn main() -> Result<()> {
         }
         Err(e) => {
             let scan_duration = scan_start.elapsed();
-            eprintln!("✗ I2C bus scan failed after {:?}", scan_duration);
-            eprintln!("Error: {}", e);
+            eprintln!("✗ I2C bus scan failed after {scan_duration:?}");
+            eprintln!("Error: {e}");
             eprintln!();
             eprintln!("Try checking I2C connections and device power.");
             return Err(e);

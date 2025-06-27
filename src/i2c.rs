@@ -272,8 +272,8 @@ impl I2cAddress {
 impl fmt::Display for I2cAddress {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            I2cAddress::Bit7(a) => write!(f, "7-bit 0x{:02X}", a),
-            I2cAddress::Bit10(a) => write!(f, "10-bit 0x{:03X}", a),
+            I2cAddress::Bit7(a) => write!(f, "7-bit 0x{a:02X}"),
+            I2cAddress::Bit10(a) => write!(f, "10-bit 0x{a:03X}"),
         }
     }
 }
@@ -308,8 +308,7 @@ impl Xr2280x {
     pub fn i2c_set_speed_khz(&self, speed_khz: u32) -> Result<()> {
         if speed_khz == 0 || speed_khz > 400 {
             return Err(Error::ArgumentOutOfRange(format!(
-                "I2C speed {} kHz out of range (1-400)",
-                speed_khz
+                "I2C speed {speed_khz} kHz out of range (1-400)"
             )));
         }
         let target_total_cycles = 60_000 / speed_khz;
@@ -323,8 +322,7 @@ impl Xr2280x {
         let final_low = low_cycles.max(min_low);
         let final_high = high_cycles.max(min_high);
         debug!(
-            "Setting I2C speed ~{}kHz: SCL_LOW=0x{:04X}, SCL_HIGH=0x{:04X}",
-            speed_khz, final_low, final_high
+            "Setting I2C speed ~{speed_khz}kHz: SCL_LOW=0x{final_low:04X}, SCL_HIGH=0x{final_high:04X}"
         );
         self.write_hid_register(consts::i2c::REG_SCL_LOW, final_low as u16)?;
         self.write_hid_register(consts::i2c::REG_SCL_HIGH, final_high as u16)?;
@@ -832,8 +830,7 @@ impl Xr2280x {
                 }
                 Err(Error::I2cArbitrationLost { address }) => {
                     warn!(
-                        "I2C arbitration lost at address 0x{:02X} - this indicates bus contention",
-                        addr_7bit
+                        "I2C arbitration lost at address 0x{addr_7bit:02X} - this indicates bus contention"
                     );
                     warn!(
                         "Possible causes: multiple I2C masters, electrical interference, or loose connections"
@@ -842,7 +839,7 @@ impl Xr2280x {
                     return Err(Error::I2cArbitrationLost { address });
                 }
                 Err(e) => {
-                    debug!("Error scanning address 0x{:02X}: {}", addr_7bit, e);
+                    debug!("Error scanning address 0x{addr_7bit:02X}: {e}");
                     // Don't count other errors as timeouts, but still fail fast if too many
                     consecutive_timeouts += 1;
                     if consecutive_timeouts >= MAX_CONSECUTIVE_TIMEOUTS {
@@ -893,7 +890,7 @@ impl Xr2280x {
             }
             Err(e) => {
                 // Other error types still indicate firmware is responsive
-                debug!("Firmware responsive, other error: {}", e);
+                debug!("Firmware responsive, other error: {e}");
                 Ok(())
             }
         }
@@ -971,8 +968,7 @@ impl Xr2280x {
         }
 
         debug!(
-            "I2C transfer to {}: write {} bytes, read {} bytes, flags=0x{:02X}",
-            slave_addr, write_len, read_len, flags
+            "I2C transfer to {slave_addr}: write {write_len} bytes, read {read_len} bytes, flags=0x{flags:02X}"
         );
         trace!("I2C OUT buffer: {:02X?}", &out_buf);
 
@@ -984,7 +980,7 @@ impl Xr2280x {
             warn!("Partial write: sent {} of {} bytes", written, out_buf.len());
             return Err(Error::Io(std::io::Error::other("Partial HID write")));
         }
-        trace!("Sent {} bytes to device", written);
+        trace!("Sent {written} bytes to device");
 
         // Always read the status response from device (even for write-only operations)
         let mut in_buf = vec![0u8; consts::i2c::IN_REPORT_READ_BUF_SIZE];
@@ -1045,10 +1041,7 @@ impl Xr2280x {
         if read_len > 0 {
             let reported_read_len = in_buf[response_offsets::READ_LENGTH] as usize;
             if reported_read_len != read_len {
-                warn!(
-                    "I2C read length mismatch: expected {}, got {}",
-                    read_len, reported_read_len
-                );
+                warn!("I2C read length mismatch: expected {read_len}, got {reported_read_len}");
             }
             let actual_read_len = reported_read_len
                 .min(read_len)

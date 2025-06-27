@@ -53,7 +53,7 @@ fn test_open_by_index_invalid_indices() {
             assert_eq!(index, invalid_index);
             assert!(message.contains("Index out of range"));
         }
-        e => panic!("Expected DeviceNotFoundByIndex error, got: {:?}", e),
+        e => panic!("Expected DeviceNotFoundByIndex error, got: {e:?}"),
     }
 }
 
@@ -71,7 +71,7 @@ fn test_open_by_serial_nonexistent() {
             assert_eq!(serial, fake_serial);
             assert!(message.contains("No XR2280x device found"));
         }
-        e => panic!("Expected DeviceNotFoundBySerial error, got: {:?}", e),
+        e => panic!("Expected DeviceNotFoundBySerial error, got: {e:?}"),
     }
 }
 
@@ -91,7 +91,7 @@ fn test_open_by_path_invalid() {
         Error::Hid(_) => {
             // hidapi might return HidError instead, which is also acceptable
         }
-        e => panic!("Expected DeviceNotFoundByPath or Hid error, got: {:?}", e),
+        e => panic!("Expected DeviceNotFoundByPath or Hid error, got: {e:?}"),
     }
 }
 
@@ -153,7 +153,7 @@ fn test_open_by_serial_number() -> Result<()> {
 
     for device_info in devices {
         if let Some(serial) = &device_info.serial_number {
-            println!("Testing serial number: {}", serial);
+            println!("Testing serial number: {serial}");
 
             // Open by serial number
             let device = Xr2280x::open_by_serial(&hid_api, serial)?;
@@ -162,7 +162,7 @@ fn test_open_by_serial_number() -> Result<()> {
             // Verify serial number matches
             assert_eq!(opened_info.serial_number.as_deref(), Some(serial.as_str()));
 
-            println!("  Successfully opened device with serial: {}", serial);
+            println!("  Successfully opened device with serial: {serial}");
         } else {
             println!("Device has no serial number, skipping serial test");
         }
@@ -186,7 +186,7 @@ fn test_open_by_path() -> Result<()> {
         // Test opening by I2C interface path if available
         if let Some(i2c_interface) = &device_info.i2c_interface {
             let path = &i2c_interface.path;
-            println!("Testing I2C interface path: {:?}", path);
+            println!("Testing I2C interface path: {path:?}");
 
             let device = Xr2280x::open_by_path(&hid_api, path)?;
             let opened_info = device.get_device_info();
@@ -194,13 +194,13 @@ fn test_open_by_path() -> Result<()> {
             // Basic validation
             assert_eq!(opened_info.vendor_id, device_info.vid);
 
-            println!("  Successfully opened device at I2C path: {:?}", path);
+            println!("  Successfully opened device at I2C path: {path:?}");
         }
 
         // Test opening by EDGE interface path if available
         if let Some(edge_interface) = &device_info.edge_interface {
             let path = &edge_interface.path;
-            println!("Testing EDGE interface path: {:?}", path);
+            println!("Testing EDGE interface path: {path:?}");
 
             let device = Xr2280x::open_by_path(&hid_api, path)?;
             let opened_info = device.get_device_info();
@@ -208,7 +208,7 @@ fn test_open_by_path() -> Result<()> {
             // Basic validation
             assert_eq!(opened_info.vendor_id, device_info.vid);
 
-            println!("  Successfully opened device at EDGE path: {:?}", path);
+            println!("  Successfully opened device at EDGE path: {path:?}");
         }
     }
 
@@ -286,7 +286,7 @@ fn test_multiple_device_handling() -> Result<()> {
         for i in 0..devices.len() {
             let device = Xr2280x::open_by_index(&hid_api, i)?;
             let _info = device.get_device_info();
-            println!("  ✓ Hardware device {} opened successfully", i);
+            println!("  ✓ Hardware device {i} opened successfully");
         }
 
         // Test that out-of-range index fails
@@ -311,7 +311,7 @@ fn test_hardware_device_interfaces() -> Result<()> {
     }
 
     for (index, device_info) in devices.iter().enumerate() {
-        println!("Testing hardware device {}", index);
+        println!("Testing hardware device {index}");
 
         let device = Xr2280x::device_open(&hid_api, device_info)?;
         let capabilities = device.get_capabilities();
@@ -325,7 +325,7 @@ fn test_hardware_device_interfaces() -> Result<()> {
         if device_info.i2c_interface.is_some() {
             match device.i2c_set_speed_khz(100) {
                 Ok(()) => println!("  ✓ I2C functionality works"),
-                Err(e) => println!("  ⚠ I2C functionality failed: {}", e),
+                Err(e) => println!("  ⚠ I2C functionality failed: {e}"),
             }
         }
 
@@ -333,7 +333,7 @@ fn test_hardware_device_interfaces() -> Result<()> {
         if device_info.edge_interface.is_some() {
             if let Ok(pin) = xr2280x_hid::gpio::GpioPin::new(0) {
                 match device.gpio_read(pin) {
-                    Ok(level) => println!("  ✓ GPIO read works: {:?}", level),
+                    Ok(level) => println!("  ✓ GPIO read works: {level:?}"),
                     Err(_) => println!("  ⚠ GPIO read failed (may need configuration)"),
                 }
             }

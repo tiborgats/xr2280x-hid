@@ -47,7 +47,7 @@ fn fast_device_scanning(device: &Xr2280x) -> Result<()> {
     println!("   Found {} devices in {:?}", devices.len(), duration);
 
     for addr in devices {
-        println!("     - Device at 0x{:02X}", addr);
+        println!("     - Device at 0x{addr:02X}");
     }
 
     // For even faster scanning of known responsive devices
@@ -56,11 +56,11 @@ fn fast_device_scanning(device: &Xr2280x) -> Result<()> {
     let _devices =
         device.i2c_scan_with_progress_and_timeout(0x48, 0x4F, 10, |addr, found, _, _| {
             if found {
-                println!("     Quick response from 0x{:02X}", addr);
+                println!("     Quick response from 0x{addr:02X}");
             }
         })?;
     let duration = start.elapsed();
-    println!("   Scanned sensor range in {:?}", duration);
+    println!("   Scanned sensor range in {duration:?}");
 
     println!();
     Ok(())
@@ -84,13 +84,10 @@ fn responsive_sensor_example(device: &Xr2280x) -> Result<()> {
             println!("     Raw data: 0x{:02X}{:02X}", temp_data[0], temp_data[1]);
         }
         Err(Error::I2cNack { .. }) => {
-            println!(
-                "   - No temperature sensor found at 0x{:02X}",
-                temp_sensor_addr
-            );
+            println!("   - No temperature sensor found at 0x{temp_sensor_addr:02X}");
         }
         Err(e) => {
-            println!("   ✗ Error reading temperature sensor: {}", e);
+            println!("   ✗ Error reading temperature sensor: {e}");
         }
     }
 
@@ -104,7 +101,7 @@ fn responsive_sensor_example(device: &Xr2280x) -> Result<()> {
             println!("   - Sensor not responding");
         }
         Err(e) => {
-            println!("   ✗ Fast read error: {}", e);
+            println!("   ✗ Fast read error: {e}");
         }
     }
 
@@ -130,16 +127,16 @@ fn slow_eeprom_example(device: &Xr2280x) -> Result<()> {
     match device.i2c_eeprom_write_7bit(eeprom_addr, &test_data) {
         Ok(_) => {
             let duration = start.elapsed();
-            println!("   ✓ EEPROM write completed in {:?}", duration);
+            println!("   ✓ EEPROM write completed in {duration:?}");
         }
         Err(Error::I2cNack { .. }) => {
-            println!("   - No EEPROM found at 0x{:02X}", eeprom_addr);
+            println!("   - No EEPROM found at 0x{eeprom_addr:02X}");
         }
         Err(Error::I2cTimeout { .. }) => {
             println!("   ✗ EEPROM write timeout - device may be busy or stuck");
         }
         Err(e) => {
-            println!("   ✗ EEPROM write error: {}", e);
+            println!("   ✗ EEPROM write error: {e}");
         }
     }
 
@@ -147,13 +144,13 @@ fn slow_eeprom_example(device: &Xr2280x) -> Result<()> {
     let mut read_data = [0u8; 4];
     match device.i2c_read_7bit(eeprom_addr, &mut read_data) {
         Ok(_) => {
-            println!("   ✓ EEPROM read: {:02X?}", read_data);
+            println!("   ✓ EEPROM read: {read_data:02X?}");
         }
         Err(Error::I2cNack { .. }) => {
             println!("   - EEPROM read: device not responding");
         }
         Err(e) => {
-            println!("   ✗ EEPROM read error: {}", e);
+            println!("   ✗ EEPROM read error: {e}");
         }
     }
 
@@ -173,16 +170,16 @@ fn custom_timeout_example(device: &Xr2280x) -> Result<()> {
 
     match device.i2c_read_7bit_with_timeout(sensor_addr, &mut imu_data, rt_timeout) {
         Ok(_) => {
-            println!("   ✓ Real-time IMU read within {}ms", rt_timeout);
+            println!("   ✓ Real-time IMU read within {rt_timeout}ms");
         }
         Err(Error::I2cTimeout { .. }) => {
-            println!("   ✗ IMU failed real-time constraint (>{}ms)", rt_timeout);
+            println!("   ✗ IMU failed real-time constraint (>{rt_timeout}ms)");
         }
         Err(Error::I2cNack { .. }) => {
-            println!("   - No IMU found at 0x{:02X}", sensor_addr);
+            println!("   - No IMU found at 0x{sensor_addr:02X}");
         }
         Err(e) => {
-            println!("   ✗ IMU error: {}", e);
+            println!("   ✗ IMU error: {e}");
         }
     }
 
@@ -194,16 +191,16 @@ fn custom_timeout_example(device: &Xr2280x) -> Result<()> {
 
     match device.i2c_write_7bit_with_timeout(slow_device_addr, &test_data, tolerant_timeout) {
         Ok(_) => {
-            println!("   ✓ Slow device responded within {}ms", tolerant_timeout);
+            println!("   ✓ Slow device responded within {tolerant_timeout}ms");
         }
         Err(Error::I2cTimeout { .. }) => {
-            println!("   ✗ Device too slow (>{}ms)", tolerant_timeout);
+            println!("   ✗ Device too slow (>{tolerant_timeout}ms)");
         }
         Err(Error::I2cNack { .. }) => {
-            println!("   - No device found at 0x{:02X}", slow_device_addr);
+            println!("   - No device found at 0x{slow_device_addr:02X}");
         }
         Err(e) => {
-            println!("   ✗ Slow device error: {}", e);
+            println!("   ✗ Slow device error: {e}");
         }
     }
 
@@ -230,20 +227,20 @@ fn stuck_bus_detection_example(device: &Xr2280x) -> Result<()> {
         timeouts::SCAN,
         |addr, found, idx, total| {
             if idx % 20 == 0 {
-                println!("   Progress: {}/{} addresses scanned", idx, total);
+                println!("   Progress: {idx}/{total} addresses scanned");
             }
             if found {
-                println!("   Found device at 0x{:02X}", addr);
+                println!("   Found device at 0x{addr:02X}");
             }
         },
     ) {
         Ok(devices) => {
             let duration = start.elapsed();
-            println!("   ✓ Scan completed in {:?}", duration);
+            println!("   ✓ Scan completed in {duration:?}");
             println!("     Found {} devices total", devices.len());
         }
         Err(Error::I2cTimeout { address }) => {
-            println!("   ✗ Stuck bus detected at address {}", address);
+            println!("   ✗ Stuck bus detected at address {address}");
             println!("     This typically means:");
             println!("     - A device is holding SDA/SCL low");
             println!("     - Power supply issues");
@@ -251,7 +248,7 @@ fn stuck_bus_detection_example(device: &Xr2280x) -> Result<()> {
             println!("   Recommendation: Check hardware connections and power");
         }
         Err(e) => {
-            println!("   ✗ Scan error: {}", e);
+            println!("   ✗ Scan error: {e}");
         }
     }
 

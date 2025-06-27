@@ -194,7 +194,7 @@ impl Xr2280x {
         let timeout = timeout_ms.unwrap_or(DEFAULT_INTERRUPT_TIMEOUT_MS);
         let mut buffer = vec![0u8; 64]; // Adjust size as needed
 
-        debug!("Reading GPIO interrupt report with timeout {}ms", timeout);
+        debug!("Reading GPIO interrupt report with timeout {timeout}ms");
         let edge_device = self.edge_device.as_ref().ok_or(Error::DeviceNotFound)?;
         match edge_device.read_timeout(&mut buffer, timeout) {
             Ok(size) => {
@@ -204,7 +204,7 @@ impl Xr2280x {
                 })
             }
             Err(e) => {
-                warn!("Failed to read interrupt report: {}", e);
+                warn!("Failed to read interrupt report: {e}");
                 Err(Error::Hid(e))
             }
         }
@@ -383,9 +383,8 @@ impl Xr2280x {
 
         // Log parsed values for verification
         debug!(
-            "⚠️  UNVERIFIED parsed GPIO interrupt: Group0 state=0x{:04X} triggers=0x{:04X}, \
-            Group1 state=0x{:04X} triggers=0x{:04X}",
-            current_state_group0, trigger_mask_group0, current_state_group1, trigger_mask_group1
+            "⚠️  UNVERIFIED parsed GPIO interrupt: Group0 state=0x{current_state_group0:04X} triggers=0x{trigger_mask_group0:04X}, \
+            Group1 state=0x{current_state_group1:04X} triggers=0x{trigger_mask_group1:04X}"
         );
 
         warn!(
