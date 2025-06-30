@@ -1471,10 +1471,7 @@ impl Xr2280x {
         let mut config = self.gpio_write_config.lock().unwrap();
         config.retry_attempts = attempts;
         config.retry_delay = delay;
-        debug!(
-            "GPIO write retry configured: {} attempts with {:?} delay",
-            attempts, delay
-        );
+        debug!("GPIO write retry configured: {attempts} attempts with {delay:?} delay");
         Ok(())
     }
 
@@ -1482,7 +1479,7 @@ impl Xr2280x {
     pub fn gpio_set_write_config(&self, new_config: GpioWriteConfig) -> Result<()> {
         let mut config = self.gpio_write_config.lock().unwrap();
         *config = new_config.clone();
-        debug!("GPIO write config updated: {:?}", new_config);
+        debug!("GPIO write config updated: {new_config:?}");
         Ok(())
     }
 

@@ -173,8 +173,8 @@ mod hardware_tests {
         device.gpio_write_verified(pin, GpioLevel::Low).unwrap();
         let verified_duration = start.elapsed();
 
-        println!("Fast write duration: {:?}", fast_duration);
-        println!("Verified write duration: {:?}", verified_duration);
+        println!("Fast write duration: {fast_duration:?}");
+        println!("Verified write duration: {verified_duration:?}");
 
         // Verified writes should be slower due to readback
         assert!(verified_duration > fast_duration);
@@ -272,14 +272,10 @@ mod hardware_tests {
                 Ok(()) => {
                     // Verify the write actually worked
                     let actual = device.gpio_read(pin).unwrap();
-                    assert_eq!(
-                        actual, level,
-                        "Write verification failed on iteration {}",
-                        i
-                    );
+                    assert_eq!(actual, level, "Write verification failed on iteration {i}");
                 }
                 Err(e) => {
-                    panic!("GPIO write failed on iteration {}: {}", i, e);
+                    panic!("GPIO write failed on iteration {i}: {e}");
                 }
             }
         }
@@ -339,9 +335,9 @@ mod hardware_tests {
         }
         let verified_duration = start.elapsed();
 
-        println!("Performance comparison over {} iterations:", ITERATIONS);
-        println!("  Fast mode:     {:?}", fast_duration);
-        println!("  Verified mode: {:?}", verified_duration);
+        println!("Performance comparison over {ITERATIONS} iterations:");
+        println!("  Fast mode:     {fast_duration:?}");
+        println!("  Verified mode: {verified_duration:?}");
         println!(
             "  Slowdown:      {:.2}x",
             verified_duration.as_secs_f64() / fast_duration.as_secs_f64()
@@ -408,13 +404,12 @@ mod hardware_tests {
             Ok(()) => {
                 assert!(
                     duration < Duration::from_millis(150),
-                    "Operation took too long: {:?}",
-                    duration
+                    "Operation took too long: {duration:?}"
                 );
             }
             Err(e) => {
                 // Check if it's a timeout error
-                let error_string = format!("{}", e);
+                let error_string = format!("{e}");
                 if error_string.contains("timed out") {
                     // This is expected with the short timeout
                     assert!(
@@ -423,7 +418,7 @@ mod hardware_tests {
                     );
                 } else {
                     // Other errors are also acceptable in this test
-                    println!("Got non-timeout error (also acceptable): {}", e);
+                    println!("Got non-timeout error (also acceptable): {e}");
                 }
             }
         }
@@ -456,7 +451,7 @@ mod mock_tests {
         for config in configs {
             // Just verify we can create and clone these configurations
             let _cloned = config.clone();
-            let _debug_str = format!("{:?}", config);
+            let _debug_str = format!("{config:?}");
         }
     }
 
@@ -466,8 +461,8 @@ mod mock_tests {
         let high = GpioLevel::High;
         let low = GpioLevel::Low;
 
-        let high_str = format!("{:?}", high);
-        let low_str = format!("{:?}", low);
+        let high_str = format!("{high:?}");
+        let low_str = format!("{low:?}");
 
         assert_eq!(high_str, "High");
         assert_eq!(low_str, "Low");

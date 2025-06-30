@@ -133,10 +133,10 @@ fn demo_verified_mode(device: &Xr2280x, pins: &[GpioPin]) -> Result<()> {
 
                 // Verify it actually worked by reading back
                 let level = device.gpio_read(pin)?;
-                println!("    📖 Readback confirms: {:?}", level);
+                println!("    📖 Readback confirms: {level:?}");
             }
             Err(e) => {
-                println!("    ❌ HIGH write failed: {}", e);
+                println!("    ❌ HIGH write failed: {e}");
             }
         }
 
@@ -144,10 +144,10 @@ fn demo_verified_mode(device: &Xr2280x, pins: &[GpioPin]) -> Result<()> {
             Ok(()) => {
                 println!("    ✅ LOW write verified successfully");
                 let level = device.gpio_read(pin)?;
-                println!("    📖 Readback confirms: {:?}", level);
+                println!("    📖 Readback confirms: {level:?}");
             }
             Err(e) => {
-                println!("    ❌ LOW write failed: {}", e);
+                println!("    ❌ LOW write failed: {e}");
             }
         }
     }
@@ -183,10 +183,10 @@ fn demo_custom_config(device: &Xr2280x, pins: &[GpioPin]) -> Result<()> {
         match device.gpio_write(pin, GpioLevel::High) {
             Ok(()) => {
                 let duration = start.elapsed();
-                println!("    ✅ Write succeeded in {:?}", duration);
+                println!("    ✅ Write succeeded in {duration:?}");
             }
             Err(e) => {
-                println!("    ❌ Write failed even with max reliability: {}", e);
+                println!("    ❌ Write failed even with max reliability: {e}");
             }
         }
 
@@ -205,7 +205,7 @@ fn demo_custom_config(device: &Xr2280x, pins: &[GpioPin]) -> Result<()> {
 fn demo_performance_comparison(device: &Xr2280x, pins: &[GpioPin]) -> Result<()> {
     const ITERATIONS: usize = 10;
 
-    println!("Comparing performance across {} iterations...", ITERATIONS);
+    println!("Comparing performance across {ITERATIONS} iterations...");
 
     if pins.is_empty() || pins[0].number() >= device.get_capabilities().gpio_count {
         println!("  ⚠️  No available pins for performance testing");
@@ -295,7 +295,7 @@ fn demo_error_handling(device: &Xr2280x, pins: &[GpioPin]) -> Result<()> {
             println!("    ✅ Write succeeded despite aggressive settings");
         }
         Err(e) => {
-            println!("    ❌ Write failed as expected: {}", e);
+            println!("    ❌ Write failed as expected: {e}");
 
             // Demonstrate recovery strategies
             println!("    🔄 Attempting recovery strategies...");
@@ -307,7 +307,7 @@ fn demo_error_handling(device: &Xr2280x, pins: &[GpioPin]) -> Result<()> {
             match device.gpio_write(test_pin, GpioLevel::High) {
                 Ok(()) => println!("    ✅ Recovery successful with reliable config"),
                 Err(e) => {
-                    println!("    ❌ Recovery failed: {}", e);
+                    println!("    ❌ Recovery failed: {e}");
 
                     // Strategy 2: Fall back to fast mode
                     println!("    🏃 Falling back to fast mode...");
@@ -315,7 +315,7 @@ fn demo_error_handling(device: &Xr2280x, pins: &[GpioPin]) -> Result<()> {
 
                     // Manual verification
                     let actual = device.gpio_read(test_pin)?;
-                    println!("    📖 Manual verification: {:?}", actual);
+                    println!("    📖 Manual verification: {actual:?}");
                 }
             }
         }
@@ -392,7 +392,7 @@ fn simulate_power_control(device: &Xr2280x, power_pin: GpioPin) -> Result<()> {
             println!("    ✅ Power disabled and verified");
         }
         Err(e) => {
-            println!("    ❌ CRITICAL: Power control failed: {}", e);
+            println!("    ❌ CRITICAL: Power control failed: {e}");
             println!("    🚨 System may be in unsafe state!");
         }
     }
@@ -415,7 +415,7 @@ fn simulate_bit_banging(device: &Xr2280x, pins: &[GpioPin]) -> Result<()> {
     device.gpio_set_write_config(GpioWriteConfig::fast())?;
 
     let data_byte = 0xA5u8; // 10100101
-    println!("    📡 Sending byte: 0x{:02X}", data_byte);
+    println!("    📡 Sending byte: 0x{data_byte:02X}");
 
     let start = Instant::now();
 
@@ -437,7 +437,7 @@ fn simulate_bit_banging(device: &Xr2280x, pins: &[GpioPin]) -> Result<()> {
     }
 
     let duration = start.elapsed();
-    println!("    ⚡ Bit-banging completed in {:?}", duration);
+    println!("    ⚡ Bit-banging completed in {duration:?}");
 
     Ok(())
 }
@@ -483,10 +483,10 @@ fn simulate_mixed_control(device: &Xr2280x, pins: &[GpioPin]) -> Result<()> {
         match device.gpio_write(pin, GpioLevel::High) {
             Ok(()) => {
                 let duration = start.elapsed();
-                println!("      ✅ Operation completed in {:?}", duration);
+                println!("      ✅ Operation completed in {duration:?}");
             }
             Err(e) => {
-                println!("      ❌ Operation failed: {}", e);
+                println!("      ❌ Operation failed: {e}");
             }
         }
 
