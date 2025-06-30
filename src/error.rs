@@ -103,6 +103,42 @@ pub enum Error {
         /// Description of the hardware issue.
         message: String,
     },
+    /// GPIO write verification failed - pin did not reach expected level.
+    #[error(
+        "GPIO write verification failed for pin {pin} on attempt {attempt}: expected {expected:?}, but pin reads {actual:?}. This indicates a hardware timing issue or pin conflict."
+    )]
+    GpioWriteVerificationFailed {
+        /// The GPIO pin number that failed verification.
+        pin: u8,
+        /// The level that was expected after the write.
+        expected: crate::gpio::GpioLevel,
+        /// The level that was actually read from the pin.
+        actual: crate::gpio::GpioLevel,
+        /// The attempt number when verification failed.
+        attempt: u32,
+    },
+    /// GPIO operation timed out before completion.
+    #[error(
+        "GPIO {operation} operation on pin {pin} timed out after {timeout_ms}ms. This may indicate hardware issues or excessive retry delays."
+    )]
+    GpioOperationTimeout {
+        /// The GPIO pin number where the timeout occurred.
+        pin: u8,
+        /// Description of the operation that timed out.
+        operation: String,
+        /// The timeout duration in milliseconds.
+        timeout_ms: u32,
+    },
+    /// All GPIO write retry attempts have been exhausted.
+    #[error(
+        "GPIO write retries exhausted for pin {pin} after {attempts} attempts. Consider increasing retry delay or checking hardware connections."
+    )]
+    GpioWriteRetriesExhausted {
+        /// The GPIO pin number where retries were exhausted.
+        pin: u8,
+        /// The total number of attempts that were made.
+        attempts: u32,
+    },
     /// PWM channel configuration error.
     #[error("PWM channel {channel} configuration error: {message}")]
     PwmConfigurationError {

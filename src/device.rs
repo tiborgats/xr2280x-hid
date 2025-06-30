@@ -2,10 +2,12 @@
 
 use crate::consts;
 use crate::error::{Error, Result};
+use crate::gpio::GpioWriteConfig;
 use hidapi::{HidApi, HidDevice};
 use log::{debug, trace, warn};
 use std::collections::HashMap;
 use std::ffi::CStr;
+use std::sync::Mutex;
 
 // HID Report Structure Constants - Register Communication
 // These constants define the structure of HID register reports to eliminate magic numbers
@@ -381,6 +383,7 @@ pub struct Xr2280x {
     pub(crate) edge_device: Option<HidDevice>,
     pub(crate) info: XrDeviceDetails,
     pub(crate) capabilities: Capabilities,
+    pub(crate) gpio_write_config: Mutex<GpioWriteConfig>,
 }
 
 impl Xr2280x {
@@ -545,6 +548,7 @@ impl Xr2280x {
             edge_device,
             info: info.clone(),
             capabilities: Capabilities::default(),
+            gpio_write_config: Mutex::new(GpioWriteConfig::default()),
         };
 
         let capabilities = if temp_handle.edge_device.is_some() {
@@ -570,6 +574,7 @@ impl Xr2280x {
             edge_device: temp_handle.edge_device,
             info,
             capabilities,
+            gpio_write_config: Mutex::new(GpioWriteConfig::default()),
         })
     }
 

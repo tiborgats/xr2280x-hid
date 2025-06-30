@@ -18,6 +18,7 @@ Rust library for controlling MaxLinear/Exar XR2280x series USB-to-I²C/GPIO/PWM 
 - **Multi-Device Support**: Enumerate and select from multiple connected devices
 - **I²C Communication**: 7-bit/10-bit addressing, configurable speed, bus scanning
 - **GPIO Control**: Individual pin and bulk operations, interrupts
+- **GPIO Reliability**: Write verification and retry logic to address XR2280x timing issues
 - **PWM Output**: Configurable frequency and duty cycle
 - **Cross-Platform**: Linux, macOS, Windows via hidapi
 
@@ -45,15 +46,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     device.i2c_set_speed_khz(100)?;
     let devices = device.i2c_scan_default()?;
 
-    // GPIO
+    // GPIO with reliability features
     let pin = GpioPin::new(0)?;
     device.gpio_assign_to_edge(pin)?;
     device.gpio_set_direction(pin, GpioDirection::Output)?;
-    device.gpio_write(pin, GpioLevel::High)?;
+    
+    // Enable write verification for critical operations
+    device.gpio_set_write_verification(true)?;
+    device.gpio_write(pin, GpioLevel::High)?; // Verified write
 
     Ok(())
 }
 ```
+
+## GPIO Reliability
+
+XR2280x devices can have intermittent GPIO write failures. This library includes write verification and retry features - see the [GPIO module documentation](https://docs.rs/xr2280x-hid/latest/xr2280x_hid/gpio/) for details.
 
 ## Examples
 
@@ -64,6 +72,7 @@ cargo run --example enumerate_hardware          # List connected devices
 cargo run --example i2c_scan                    # Scan I²C bus
 cargo run --example blink                       # GPIO blink
 cargo run --example gpio_transactions           # Efficient batch GPIO operations
+cargo run --example gpio_reliability_demo       # GPIO write reliability features
 cargo run --example pwm_out                     # PWM output
 cargo run --example gpio_interrupt_safe_usage   # Safe vs unsafe interrupt handling
 ```

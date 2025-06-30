@@ -11,11 +11,25 @@
 //! - **Flexible GPIO control** with interrupt support
 //!   - Individual pin control with direction, pull-up/pull-down, and open-drain modes
 //!   - Bulk operations for efficient multi-pin control
+//!   - **GPIO write reliability features** to address XR2280x timing issues
 //! - **PWM output generation** on any GPIO pin
 //!   - Two independent PWM channels with nanosecond precision
 //!   - Multiple operating modes (idle, one-shot, free-run)
 //! - **Cross-platform support** via hidapi (Linux, Windows, macOS)
 //! - **Zero-copy operations** where possible for maximum performance
+//!
+//! ## GPIO Reliability
+//!
+//! **⚠️ Important**: XR2280x devices have a known reliability issue where GPIO write operations
+//! can return success but fail to change the physical pin state (affects ~20-30% of operations
+//! on some pins). This crate provides comprehensive reliability features:
+//!
+//! - **Write verification**: Automatic readback verification of GPIO writes
+//! - **Retry logic**: Configurable retry attempts with delays for failed operations
+//! - **Multiple modes**: Fast (no verification), Reliable (verified + retries), or Custom
+//! - **Zero breaking changes**: Existing code works unchanged
+//!
+//! See the [`gpio`] module documentation for detailed information and examples.
 //!
 //! ## Device Support
 //!

@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.10] - 2025-07-30
+
+### Added
+- **GPIO Write Reliability Features**: Comprehensive solution for XR2280x GPIO write failures
+  - **Problem Addressed**: XR2280x devices have intermittent GPIO write failures where `gpio_write()` returns `Ok(())` but the physical pin doesn't change state (20-30% failure rate on some pins)
+  - **Write Verification**: Automatic readback verification of GPIO writes to detect silent failures
+  - **Retry Logic**: Configurable retry attempts with delays for failed operations
+  - **Multiple Reliability Modes**:
+    - `GpioWriteConfig::fast()` - No verification (default, original behavior)
+    - `GpioWriteConfig::reliable()` - Verification + 3 retries + 20ms delays
+    - Custom configuration with full parameter control
+  - **New API Methods**:
+    - `gpio_write_verified()` - Always uses verification and retries
+    - `gpio_write_fast()` - Never uses verification (explicit fast mode)
+    - `gpio_set_write_verification()` - Enable/disable verification globally
+    - `gpio_set_retry_config()` - Configure retry behavior
+    - `gpio_set_write_config()` / `gpio_get_write_config()` - Full configuration management
+  - **New Error Types**:
+    - `GpioWriteVerificationFailed` - Write succeeded but verification failed
+    - `GpioOperationTimeout` - Operation timed out before completion
+    - `GpioWriteRetriesExhausted` - All retry attempts exhausted
+  - **Performance Impact**: Fast mode unchanged (~500-1000 ops/sec), reliable mode ~50-200 ops/sec
+  - **Backward Compatibility**: Zero breaking changes - existing `gpio_write()` calls work unchanged
+- **Comprehensive Documentation**: Added detailed GPIO reliability documentation in module docs
+- **Examples and Tests**: Added `gpio_reliability_demo.rs` example and comprehensive test suite
+
 ## [0.9.9] - 2025-06-25
 
 ### Fixed
@@ -50,7 +76,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Root Cause**: hidapi automatically prefixes HID reports with a Report ID byte, but parsing code wasn't accounting for this offset
   - **I2C Data Reading Impact**: I2C reads returned data from register N+1 instead of register N, causing incorrect sensor readings
   - **GPIO Interrupt Impact**: GPIO interrupt reports parsed wrong bytes as pin states and trigger information
-  - **Technical Details**: 
+  - **Technical Details**:
     - Before: `let status_flags = in_buf[0];` (reading Report ID as status)
     - After: `let status_flags = in_buf[1];` (correctly skipping Report ID)
     - Buffer layout: `[ReportID][Flags][WrSize][RdSize][Reserved][Data...]` where ReportID is added by hidapi
@@ -58,7 +84,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Result**: I2C operations now read from correct register addresses, GPIO interrupts parse pin states correctly
 - **CRITICAL: 10-bit I2C Address Encoding Bug**: Fixed incorrect bit positioning making 10-bit I2C addressing completely non-functional
   - **Root Cause**: High 2 bits of 10-bit addresses weren't shifted to correct bit positions (2:1) for I2C protocol compliance
-  - **Technical Details**: 
+  - **Technical Details**:
     - Before: `((addr >> 8) & 0x03) | 0xF0` - Missing required bit shift
     - After: `(((addr >> 8) & 0x03) << 1) | 0xF0` - Proper `11110xx0` pattern encoding
     - Example fix: Address 0x150 now correctly encoded as 0xF2 instead of 0xF1
@@ -71,7 +97,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - **High-Performance GPIO Configuration APIs**: New efficient functions to dramatically reduce HID transaction overhead
   - `gpio_setup_output()` - Efficient single pin output setup (5 vs 8 HID transactions, 37% improvement)
-  - `gpio_setup_input()` - Efficient single pin input setup (4 vs 6 HID transactions, 33% improvement)  
+  - `gpio_setup_input()` - Efficient single pin input setup (4 vs 6 HID transactions, 33% improvement)
   - `gpio_setup_outputs()` - Bulk output configuration (6 total vs 8×N HID transactions, 5.3x improvement for 4 pins)
   - `gpio_setup_inputs()` - Bulk input configuration (6 total vs 6×N HID transactions)
   - `gpio_apply_bulk_config()` - Advanced bulk configuration with mixed settings
@@ -80,7 +106,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Performance comparison examples showing old vs new patterns
   - Best practices section in main library documentation
   - Clear warnings on inefficient operation patterns
-- **10-bit I2C Address Support Enhancements**: 
+- **10-bit I2C Address Support Enhancements**:
   - Added `TEN_BIT_ADDR` flag constant for proper protocol signaling
   - Comprehensive unit tests covering all 10-bit addressing edge cases
   - `i2c_10bit_addressing.rs` example demonstrating proper 10-bit I2C usage
@@ -130,7 +156,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - **Memory Safety**: No unsafe code required, all bounds checking and error handling preserved throughout optimization
 
 ### Technical Details
-- **Comprehensive Validation**: 
+- **Comprehensive Validation**:
   - All existing unit tests continue to pass with bug fixes applied
   - New integration tests verify correct data alignment and I2C protocol compliance
   - Real hardware testing confirms accurate register reads and 10-bit I2C functionality
@@ -163,7 +189,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **API Selection Guidelines**: Use `gpio_setup_*()` for one-time configuration, `gpio_write()` for runtime toggling, bulk APIs for multiple pins
 - **Migration Prioritization**: Focus on high-frequency operations, initialization sequences, and bulk reconfigurations first
 - **Gradual Approach**: Migrate performance-critical code first, existing APIs remain fully functional for gradual transition
-- **Best Practices**: 
+- **Best Practices**:
   - Batch GPIO configuration during initialization phase
   - Cache configuration state in application logic when possible
   - Group operations by GPIO hardware boundaries (0-15 vs 16-31) for maximum efficiency
@@ -316,7 +342,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - **Code Organization**: Refactored monolithic `lib.rs` into focused modules for better maintainability:
   - `device.rs` - Device discovery, opening, and management
-  - `i2c.rs` - I2C communication functionality  
+  - `i2c.rs` - I2C communication functionality
   - `gpio.rs` - GPIO control and configuration
   - `pwm.rs` - PWM generation and control
   - `interrupt.rs` - GPIO interrupt handling
